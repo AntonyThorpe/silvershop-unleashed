@@ -1,0 +1,23 @@
+{
+	"name": "antonythorpe/silvershop-unleashed",
+	"description": "Silvershop submodule that integrates with Unleashed Software Inventory Management",
+	"type": "silverstripe-module",
+	"keywords": ["Silverstripe", "Silvershop", "eCommerce", "Unleashed Software", "inventory management"],
+	"extra": {
+		"installer-name": "silvershop-unleashed",
+		"branch-alias": {
+			"dev-master": "1.*-dev"
+		}
+	},
+	"require": {
+		"antonythorpe/consumer": "^1.0.0",
+		"silvershop/core": "^2.0.0"
+	},
+	"require-dev": {
+		"phpunit/PHPUnit": "3.7.*@stable"
+	},
+	"suggest": {
+		"guzzlehttp/guzzle": "a PHP HTTP client that makes it easy to send HTTP requests and trivial to integrate with web services"
+	},
+	"license": "MIT"
+}

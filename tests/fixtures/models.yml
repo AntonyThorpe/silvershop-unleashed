@@ -1,0 +1,99 @@
+ProductCategory:
+  products:
+    Title: Products
+    URLSegment: products
+    Guid: G111
+  clothing:
+    Title: Clothing
+    URLSegment: clothing
+    Parent: =>ProductCategory.products #Sub page of products
+    Guid: G112
+  electronics:
+    Title: Electronics
+    URLSegment: electronics
+    Parent: =>ProductCategory.products
+    Guid: G113
+  musicplayers:
+    Title: Music Players
+    URLSegment: music-players
+    Parent: =>ProductCategory.electronics
+    Guid: G114
+  clearance:
+    Title: Clearance
+    Guid: G115
+  newguy:
+    Title: New Guy
+Product:
+  socks:
+    InternalItemID: IIID1
+    Title: Socks
+    BasePrice: 8
+    URLSegment: socks
+    Parent: =>ProductCategory.clothing
+    AllowPurchase: 1
+    Weight: 0.1
+    Stock: 50
+    Guid: G11
+  mp3player:
+    InternalItemID: IIID5
+    Title: Mp3 Player
+    BasePrice: 200
+    URLSegment: mp3-player
+    Parent: =>ProductCategory.musicplayers
+    ProductCategories: =>ProductCategory.clearance
+    AllowPurchase: 1
+    Weight: 0.3
+    Stock: 1000 #You need stock levels if you have included the stock module, else the test will fail.
+    Guid: G15
+Order:
+  paid1:
+    Guid: G201
+    Reference: O1
+    Status: Paid
+    Created: 2012-10-02 07:23:08
+    Placed: 2012-10-02 07:33:21
+    Paid: 2012-10-02 07:34:29
+    Member: =>Member.jeremyperemy
+    Total: 408
+  paid2:
+    Guid: G202
+    Reference: O2
+    Status: Paid
+    Created: 2012-10-02 07:23:08
+    Placed: 2012-10-02 07:33:21
+    Paid: 2012-10-02 07:34:29
+    Member: =>Member.jeremyperemy
+    Total: 408
+Product_OrderItem:
+  paid1_socks:
+    Guid: G401
+    Order: =>Order.paid1
+    Product: =>Product.socks
+    ProductVersion: 1
+    UnitPrice: 8
+    Quantity: 1
+    CalculatedTotal: 8
+  paid1_mp3player:
+    Guid: G402
+    Order: =>Order.paid1
+    Product: =>Product.mp3player
+    ProductVersion: 1
+    UnitPrice: 200
+    Quantity: 2
+    CalculatedTotal: 400
+  paid2_socks:
+    Guid: G403
+    Order: =>Order.paid2
+    Product: =>Product.socks
+    ProductVersion: 1
+    UnitPrice: 8
+    Quantity: 1
+    CalculatedTotal: 8
+  paid2_mp3player:
+    Guid: G404
+    Order: =>Order.paid2
+    Product: =>Product.mp3player
+    ProductVersion: 1
+    UnitPrice: 200
+    Quantity: 2
+    CalculatedTotal: 400

@@ -1,0 +1,30 @@
+---
+Name: unleashed-extensions
+After: silvershop/config#shopconfig
+---
+Member:
+  extensions:
+    - UnleashedExtension
+Product:
+  extensions:
+    - UnleashedExtension
+ProductCategory:
+  extensions:
+    - UnleashedExtension
+Order:
+  extensions:
+    - UnleashedExtension
+    - SilvershopUnleashed\Model\Order
+OrderItem:
+  extensions:
+    - UnleashedExtension
+    - SilvershopUnleashed\Model\OrderItem
+OrderModifier:
+  extensions:
+    - UnleashedExtension
+    - SilvershopUnleashed\Model\OrderModifier
+
+
+
+
+
