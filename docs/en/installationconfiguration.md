@@ -35,8 +35,9 @@ Order:
   default_sales_person: Alex
   default_source_id: web # This is handy.  A source id is later used to limit calls when updating Order Status (see UnleashedUpdateOrderTask)
 
-SimpleShippingModifier:
+SimpleShippingModifier:  # or ShippingFrameworkModifier if using silvershop-shipping
   product_code: Freight  # Freight is an existing Product Code in Unleashed
+
 
 FlatTaxModifier:
   name: G.S.T.  # This matches a Tax Code in the Systems Settings of Unleashed
