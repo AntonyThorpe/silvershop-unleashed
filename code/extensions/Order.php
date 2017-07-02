@@ -88,7 +88,7 @@ class Order extends DataExtension
         parent::onAfterWrite();
         $config = $this->owner->config();
 
-        if ($config->send_sales_orders_to_unleashed && $this->owner->Status == "Paid" && !$this->owner->Guid) {
+        if ($config->send_sales_orders_to_unleashed && $this->owner->Status == "Paid") {
             // Definitions
             $order = $this->owner;
             $billing_address = $order->BillingAddress();
@@ -223,8 +223,7 @@ class Order extends DataExtension
 
 
             // Prepare Sales Order data
-            SS_Log::log(print_r($member->Guid, true), SS_Log::NOTICE);
-            if ($member->Guid) {  // Skip if previous calls have failed
+            if ($member->Guid) {  // Skip if previous calls to Customer have failed and the Guid has not been set
 
                 // Dates
                 $date_placed = new DateTime($order->Placed);
