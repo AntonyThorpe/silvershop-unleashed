@@ -25,6 +25,7 @@ Keeps Silvershop in alignment with an external source of truth - the inventory s
 * Does not utilised the 'Charge' line type for Shipping when Sales Orders are created
 * Discounts hardcoded to NIL in the Sales Order Items
 * They Product/Product Categories Build Tasks only sync existing items with Unleashed.  New items need to be added manually, via upload or modification to the existing Build Task.
+* Upon a paid order, will only send items with a value to Unleashed
 
 ## Requirements
 * [Silvershop (a SilverStripe module)](https://github.com/silvershop/silvershop-core)

@@ -261,7 +261,7 @@ class Order extends DataExtension
 
                 // Add Modifiers that have an associated product_code
                 foreach ($modifiers->sort('Sort')->getIterator() as $modifier) {
-                    if ($modifier::config()->product_code && $modifier->Type !== 'Ignored') {
+                    if ($modifier::config()->product_code && $modifier->Type !== 'Ignored' && $modifier->value()) {
                         $line_number += 1;
                         $sales_order_line = [
                             'DiscountRate' => 0,
