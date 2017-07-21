@@ -7,10 +7,18 @@ use HasGroupPricing;
 use DateTime;
 use UnleashedAPI;
 use Utils;
+use SS_Datetime;
 use SS_Log;
 
 class Order extends DataExtension
-{
+{   
+    /**
+     * Record when an order is sent to Unleashed
+     */
+    private static $db = [
+        'OrderSentToUnleashed' => 'SS_Datetime'
+    ];
+
     /**
      * Enable sending of Sales Orders to Unleashed
      * @var boolean
@@ -88,7 +96,11 @@ class Order extends DataExtension
         parent::onAfterWrite();
         $config = $this->owner->config();
 
-        if ($config->send_sales_orders_to_unleashed && $this->owner->Status == "Paid") {
+        if (
+            $config->send_sales_orders_to_unleashed
+            && $this->owner->Status == "Paid"
+            && !$this->owner->OrderSentToUnleashed
+        ) {
             // Definitions
             $order = $this->owner;
             $billing_address = $order->BillingAddress();
@@ -341,15 +353,18 @@ class Order extends DataExtension
 
                 $this->owner->extend('updateUnleashedSalesOrder', $body);
 
-                SS_Log::log(print_r($body, true), SS_Log::NOTICE);
-
-                UnleashedAPI::sendCall(
+                $response = UnleashedAPI::sendCall(
                     'POST',
                     'https://api.unleashedsoftware.com/SalesOrders/' . $order->Guid,
                     ['json' => $body]
                 );
+                if ($response->getReasonPhrase() == 'Created') {
+                    $this->owner->OrderSentToUnleashed = SS_Datetime::now()->Rfc2822();
+                    $this->owner->write();
+                }
             }
         }
 
     }
 }
+
