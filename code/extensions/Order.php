@@ -87,6 +87,19 @@ class Order extends DataExtension
     }
 
     /**
+     * Return the Address Name
+     */
+    private function getAddressName($address)
+    {
+        $address_name = $address->Address;
+        if ($address->AddressLine2) {
+            $address_name .= ' ' . $address->AddressLine2;
+        }
+        $address_name .= ' ' . $address->City;
+        return $address_name;
+    }
+
+    /**
      * Send a sales order to Unleashed upon paid status
      *
      * Note: create Customer first
@@ -148,8 +161,8 @@ class Order extends DataExtension
             }
 
             // Define Customer (use Company field of BillingAddress to allow for B2B eCommerce sites)
-            if ($company = $billing_address->Company) {
-                $customer_name = $company;    // use Organisation name
+            if ($billing_address->Company) {
+                $customer_name = $billing_address->Company;    // use Organisation name
             } else {
                 $customer_name = $order->getName();  // use Contact full name instead
             }
@@ -165,29 +178,33 @@ class Order extends DataExtension
                     if ($items = $contents['Items']) {
                         $member->Guid = $items[0]['Guid'];
                     } else {
+                        
                         // Create new Customer in Unleashed
                         $member->Guid = (string) Utils::createGuid();
+                        $address_name_postal_new_customer = $this->getAddressName($billing_address);
+                        $address_name_physical_new_customer = $this->getAddressName($shipping_address);
+
                         $body = [
                             'Addresses' => [
                                 [
-                                    'AddressName' => _t("Address.BillingAddress"),
+                                    'AddressName' => $address_name_postal_new_customer,
                                     'AddressType' => 'Postal',
                                     'City' => $billing_address->City,
                                     'Country' => $countries[$billing_address->Country],
                                     'PostalCode' => $billing_address->PostalCode,
                                     'Region' => $billing_address->State,
                                     'StreetAddress' => $billing_address->Address,
-                                    'Suburb' => $billing_address->AddressLine2
+                                    'StreetAddress2' => $billing_address->AddressLine2
                                 ],
                                 [
-                                    'AddressName' => _t("Address.ShippingAddress"),
+                                    'AddressName' => $address_name_physical_new_customer,
                                     'AddressType' => 'Physical',
                                     'City' => $shipping_address->City,
                                     'Country' => $countries[$shipping_address->Country],
                                     'PostalCode' => $shipping_address->PostalCode,
                                     'Region' => $shipping_address->State,
                                     'StreetAddress' => $shipping_address->Address,
-                                    'Suburb' => $shipping_address->AddressLine2
+                                    'StreetAddress2' => $shipping_address->AddressLine2
                                 ]
                             ],
                             'Currency' =>[
@@ -316,7 +333,7 @@ class Order extends DataExtension
                     'DeliveryPostCode' => $shipping_address->PostalCode,
                     'DeliveryRegion' => $shipping_address->State,
                     'DeliveryStreetAddress' => $shipping_address->Address,
-                    'DeliverySuburb' => $shipping_address->AddressLine2,
+                    'DeliveryStreetAddress2' => $shipping_address->AddressLine2,
                     'DiscountRate' => 0,
                     'Guid' => $order->Guid,
                     'OrderDate' => $date_placed->format('Y-m-d\TH:i:s'),
