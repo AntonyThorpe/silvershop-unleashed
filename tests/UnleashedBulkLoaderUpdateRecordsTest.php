@@ -12,6 +12,7 @@ class UnleashedBulkLoaderUpdateRecordsTest extends SapphireTest
 
     public function setUp()
     {
+        Order::config()->send_sales_orders_to_unleashed = false;
         parent::setUp();
         ShopTest::setConfiguration(); //reset config
 
