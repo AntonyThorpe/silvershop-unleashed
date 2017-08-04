@@ -11,7 +11,7 @@ use SS_Datetime;
 use SS_Log;
 
 class Order extends DataExtension
-{   
+{
     /**
      * Record when an order is sent to Unleashed
      */
@@ -86,17 +86,43 @@ class Order extends DataExtension
         }
     }
 
+
     /**
      * Return the Address Name
+     * @return string
      */
-    private function getAddressName($address)
+    public function getAddressName($address)
     {
-        $address_name = $address->Address;
-        if ($address->AddressLine2) {
-            $address_name .= ' ' . $address->AddressLine2;
+        if (is_array($address)) {
+            $address_name = $address['StreetAddress'];
+            if ($address['StreetAddress2']) {
+                $address_name .= ' ' . $address['StreetAddress2'];
+            }
+            $address_name .= ' ' . $address['City'];
+        } else {
+            $address_name = $address->Address;
+            if ($address->AddressLine2) {
+                $address_name .= ' ' . $address->AddressLine2;
+            }
+            $address_name .= ' ' . $address->City;
         }
-        $address_name .= ' ' . $address->City;
         return $address_name;
+    }
+
+    /**
+     * Match the order's shipping address to items returned from Unleashed
+     * @return boolean
+     */
+    public function matchCustomerAddress($items, $shipping_address)
+    {
+        // Obtain the delivery address
+        $address = $items[0]['Addresses'][0];
+        if ($address['AddressType'] != "Physical") {
+            if (isset($items[0]['Addresses'][1])) {
+                $address = $items[0]['Addresses'][1];
+            }
+        }
+        return strtoupper($this->getAddressName($shipping_address)) == strtoupper($this->getAddressName($address));
     }
 
     /**
@@ -109,16 +135,15 @@ class Order extends DataExtension
         parent::onAfterWrite();
         $config = $this->owner->config();
 
-        if (
-            $config->send_sales_orders_to_unleashed
-            && $this->owner->Status == "Paid"
-            && !$this->owner->OrderSentToUnleashed
-        ) {
+        if ($config->send_sales_orders_to_unleashed
+            && $this->owner->Status == 'Paid'
+            && !$this->owner->OrderSentToUnleashed) {
             // Definitions
             $order = $this->owner;
             $billing_address = $order->BillingAddress();
             $shipping_address = $order->ShippingAddress();
             $member = $order->Member();
+            $comments = $order->Notes;
             $countries = ShopConfig::config()->iso_3166_country_codes;
             $subtotal = $order->Total();
             $sell_price_tier = ShopConfig::current()->CustomerGroup()->Title;
@@ -131,7 +156,6 @@ class Order extends DataExtension
             $shipping_method = '';
             $sales_order_lines = [];
             $line_number = 0;
-
 
             // Customer
             if (!$member->exists()) {  // Create Member for Guests
@@ -160,11 +184,11 @@ class Order extends DataExtension
                 $tax_total = floatval($tax_modifier->Amount);
             }
 
-            // Define Customer (use Company field of BillingAddress to allow for B2B eCommerce sites)
+            // Define Customer Code/Name (use Company field of BillingAddress to allow for B2B eCommerce sites)
             if ($billing_address->Company) {
-                $customer_name = $billing_address->Company;    // use Organisation name
+                $customer_code_and_name = $billing_address->Company;    // use Organisation name
             } else {
-                $customer_name = $order->getName();  // use Contact full name instead
+                $customer_code_and_name = $order->getName();  // use Contact full name instead
             }
 
             if (!$member->Guid) {  // See if New Customer/Guest has previously purchased
@@ -175,78 +199,118 @@ class Order extends DataExtension
 
                 if ($response->getStatusCode() == '200') {
                     $contents = json_decode($response->getBody()->getContents(), true);
-                    if ($items = $contents['Items']) {
+                    $items = $contents['Items'];
+                    if ($items) {
+                        // Email address exists
                         $member->Guid = $items[0]['Guid'];
                     } else {
-                        
-                        // Create new Customer in Unleashed
-                        $member->Guid = (string) Utils::createGuid();
-                        $address_name_postal_new_customer = $this->getAddressName($billing_address);
-                        $address_name_physical_new_customer = $this->getAddressName($shipping_address);
-
-                        $body = [
-                            'Addresses' => [
-                                [
-                                    'AddressName' => $address_name_postal_new_customer,
-                                    'AddressType' => 'Postal',
-                                    'City' => $billing_address->City,
-                                    'Country' => $countries[$billing_address->Country],
-                                    'PostalCode' => $billing_address->PostalCode,
-                                    'Region' => $billing_address->State,
-                                    'StreetAddress' => $billing_address->Address,
-                                    'StreetAddress2' => $billing_address->AddressLine2
-                                ],
-                                [
-                                    'AddressName' => $address_name_physical_new_customer,
-                                    'AddressType' => 'Physical',
-                                    'City' => $shipping_address->City,
-                                    'Country' => $countries[$shipping_address->Country],
-                                    'PostalCode' => $shipping_address->PostalCode,
-                                    'Region' => $shipping_address->State,
-                                    'StreetAddress' => $shipping_address->Address,
-                                    'StreetAddress2' => $shipping_address->AddressLine2
-                                ]
-                            ],
-                            'Currency' =>[
-                                'CurrencyCode' => $order->Currency()
-                            ],
-                            'CustomerCode' => $customer_name,
-                            'CustomerName' => $customer_name,
-                            'ContactFirstName' => $member->FirstName,
-                            'ContactLastName' => $member->Surname,
-                            'Email' => $member->Email,
-                            'Guid' => $member->Guid,
-                            'PaymentTerm' => $config->default_payment_term,
-                            'PrintPackingSlipInsteadOfInvoice' => true,
-                            'SellPriceTier' => $sell_price_tier
-                        ];
-
-                        if ($taxable) {
-                            $body['Taxable'] = $taxable;
-                        }
-
-                        if ($created_by = $config->default_created_by) {
-                            $body['CreatedBy'] = $created_by;
-                        }
-
-                        if ($customer_type = $config->default_customer_type) {
-                            $body['CustomerType'] = $customer_type;
-                        }
-
-                        if ($phone = $billing_address->Phone) {  // add phone number if available
-                            $body['PhoneNumber'] = $phone;
-                        }
-
+                        // A Customer is not returned so we have a unique email address.
+                        // Check to see if the Customer Code exists (we cannot double up on the Customer Code)
                         $response = UnleashedAPI::sendCall(
-                            'POST',
-                            'https://api.unleashedsoftware.com/Customers/' . $member->Guid,
-                            ['json' => $body ]
+                            'GET',
+                            'https://api.unleashedsoftware.com/Customers?customerCode=' .  $customer_code_and_name
                         );
 
-                        if ($response->getReasonPhrase() == 'Created' && $order->Member()->exists()) {
-                            $member->write();
+                        if ($response->getStatusCode() == '200') {
+                            $contents = json_decode($response->getBody()->getContents(), true);
+                            $items = $contents['Items'];
+                            if ($items) {
+                                // A Customer Code already exists (and the email address is unique).
+                                // If the address is the same then this is the Customer
+                                if ($this->matchCustomerAddress($items, $shipping_address)) {
+                                    $member->Guid = $items[0]['Guid'];
+
+                                    //Note the existing email address in the Comment
+                                    //PUT Customer is not available in Unleashed
+                                    if ($comments) {
+                                        $comments .= PHP_EOL;
+                                    }
+                                    $comments .= _t(
+                                        'UnleashedAPI.addEmailToCustomerComment',
+                                        'Add email to Customer: {email_address}',
+                                        '',
+                                        ['email_address' => $member->Email]
+                                    );
+                                } else {
+                                    // The Customer Code already exists, we have a unique email address, but
+                                    // the delivery address is new
+                                    // We need to create a new Customer with a unique Customer Code
+                                    $customer_code_and_name .= rand(10000000, 99999999);
+                                }
+                            }
                         }
                     }
+                }
+            }
+
+            if (!$member->Guid) {
+                // The Customer Code does not exists in Unleashed and the email address is unique
+                // Create in Unleashed
+                $member->Guid = (string) Utils::createGuid();
+                $address_name_postal_new_customer = $this->getAddressName($billing_address);
+                $address_name_physical_new_customer = $this->getAddressName($shipping_address);
+
+                $body = [
+                    'Addresses' => [
+                        [
+                            'AddressName' => $address_name_postal_new_customer,
+                            'AddressType' => 'Postal',
+                            'City' => $billing_address->City,
+                            'Country' => $countries[$billing_address->Country],
+                            'PostalCode' => $billing_address->PostalCode,
+                            'Region' => $billing_address->State,
+                            'StreetAddress' => $billing_address->Address,
+                            'StreetAddress2' => $billing_address->AddressLine2
+                        ],
+                        [
+                            'AddressName' => $address_name_physical_new_customer,
+                            'AddressType' => 'Physical',
+                            'City' => $shipping_address->City,
+                            'Country' => $countries[$shipping_address->Country],
+                            'PostalCode' => $shipping_address->PostalCode,
+                            'Region' => $shipping_address->State,
+                            'StreetAddress' => $shipping_address->Address,
+                            'StreetAddress2' => $shipping_address->AddressLine2
+                        ]
+                    ],
+                    'Currency' =>[
+                        'CurrencyCode' => $order->Currency()
+                    ],
+                    'CustomerCode' => $customer_code_and_name,
+                    'CustomerName' => $customer_code_and_name,
+                    'ContactFirstName' => $member->FirstName,
+                    'ContactLastName' => $member->Surname,
+                    'Email' => $member->Email,
+                    'Guid' => $member->Guid,
+                    'PaymentTerm' => $config->default_payment_term,
+                    'PrintPackingSlipInsteadOfInvoice' => true,
+                    'SellPriceTier' => $sell_price_tier
+                ];
+
+                if ($taxable) {
+                    $body['Taxable'] = $taxable;
+                }
+
+                if ($config->default_created_by) {
+                    $body['CreatedBy'] = $config->default_created_by;
+                }
+
+                if ($config->default_customer_type) {
+                    $body['CustomerType'] = $config->default_customer_type;
+                }
+
+                if ($billing_address->Phone) {  // add phone number if available
+                    $body['PhoneNumber'] = $billing_address->Phone;
+                }
+
+                $response = UnleashedAPI::sendCall(
+                    'POST',
+                    'https://api.unleashedsoftware.com/Customers/' . $member->Guid,
+                    ['json' => $body ]
+                );
+
+                if ($response->getReasonPhrase() == 'Created' && $order->Member()->exists()) {
+                    $member->write();
                 }
             }
 
@@ -258,8 +322,8 @@ class Order extends DataExtension
                 $date_placed = new DateTime($order->Placed);
                 $date_paid = new DateTime($order->Paid);
                 $date_required = new DateTime($order->Paid);
-                if ($expected_days_to_deliver = $config->expected_days_to_deliver) {
-                    $date_required->modify('+' . $expected_days_to_deliver . 'day');
+                if ($config->expected_days_to_deliver) {
+                    $date_required->modify('+' . $config->expected_days_to_deliver . 'day');
                 }
 
                 // Sales Order Lines
@@ -282,7 +346,10 @@ class Order extends DataExtension
                     ];
                     if ($tax_class_name) {
                         $tax_calculator = new $tax_class_name;
-                        $sales_order_line['LineTax'] = round($tax_calculator->value($item->Total()), $config->rounding_precision);
+                        $sales_order_line['LineTax'] = round(
+                            $tax_calculator->value($item->Total()),
+                            $config->rounding_precision
+                        );
                         $sales_order_line['LineTaxCode'] = $tax_code;
                     }
                     $sales_order_lines[] = $sales_order_line;
@@ -290,7 +357,10 @@ class Order extends DataExtension
 
                 // Add Modifiers that have an associated product_code
                 foreach ($modifiers->sort('Sort')->getIterator() as $modifier) {
-                    if ($modifier::config()->product_code && $modifier->Type !== 'Ignored' && $modifier->value()) {
+                    if ($modifier::config()->product_code &&
+                        $modifier->Type !== 'Ignored' &&
+                        $modifier->value()
+                    ) {
                         $line_number += 1;
                         $sales_order_line = [
                             'DiscountRate' => 0,
@@ -306,7 +376,10 @@ class Order extends DataExtension
                         ];
                         if ($tax_class_name) {
                             $tax_calculator = new $tax_class_name;
-                            $sales_order_line['LineTax'] = round($tax_calculator->value($modifier->Amount), $config->rounding_precision);
+                            $sales_order_line['LineTax'] = round(
+                                $tax_calculator->value($modifier->Amount),
+                                $config->rounding_precision
+                            );
                             $sales_order_line['LineTaxCode'] = $tax_code;
                         }
                         $sales_order_lines[] = $sales_order_line;
@@ -315,13 +388,14 @@ class Order extends DataExtension
 
                 // Shipping Module
                 if (class_exists('ShippingMethod')) {
-                    if ($name = $order->ShippingMethod()->Name) {
+                    $name = $order->ShippingMethod()->Name;
+                    if ($name) {
                         $shipping_method = $name;
                     }
                 }
 
                 $body = [
-                    'Comments' => $order->Notes,
+                    'Comments' => $comments,
                     'Currency' =>[
                         'CurrencyCode' => $order->Currency()
                     ],
@@ -356,16 +430,16 @@ class Order extends DataExtension
                     $body['DeliveryName'] = $shipping_method;
                 }
 
-                if ($sales_order_group = $config->default_sales_order_group) {
-                    $body['SalesOrderGroup'] = $sales_order_group;
+                if ($config->default_sales_order_group) {
+                    $body['SalesOrderGroup'] = $config->default_sales_order_group;
                 }
 
-                if ($sales_person = $config->default_sales_person) {
-                    $body['SalesPerson'] = $sales_person;
+                if ($config->default_sales_person) {
+                    $body['SalesPerson'] = $config->default_sales_person;
                 }
 
-                if ($source_id = $config->default_source_id) {
-                    $body['SourceId'] = $source_id;
+                if ($config->default_source_id) {
+                    $body['SourceId'] = $config->default_source_id;
                 }
 
                 $this->owner->extend('updateUnleashedSalesOrder', $body);
@@ -381,7 +455,5 @@ class Order extends DataExtension
                 }
             }
         }
-
     }
 }
-

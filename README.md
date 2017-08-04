@@ -1,9 +1,9 @@
 # silvershop-unleashed
 Silvershop submodule that integrates with Unleashed Software Inventory Management
 
-[![Build Status](https://travis-ci.org/antonythorpe/silvershop-unleashed.svg?branch=master)](https://travis-ci.org/antonythorpe/silvershop-unleashed)
+[![Build Status](https://travis-ci.org/AntonyThorpe/silvershop-unleashed.svg?branch=master)](https://travis-ci.org/AntonyThorpe/silvershop-unleashed)
 [![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/antonythorpe/silvershop-unleashed/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/antonythorpe/silvershop-unleashed/?branch=master)
-![helpfulrobot](https://helpfulrobot.io/antonythorpe/silvershop-unleashed/badge)
+[![helpfulrobot](https://helpfulrobot.io/antonythorpe/silvershop-unleashed/badge)](http://addons.silverstripe.org/add-ons/antonythorpe/silvershop-unleashed)
 [![Latest Stable Version](https://poser.pugx.org/antonythorpe/silvershop-unleashed/v/stable)](https://packagist.org/packages/antonythorpe/silvershop-unleashed)
 [![Total Downloads](https://poser.pugx.org/antonythorpe/silvershop-unleashed/downloads)](https://packagist.org/packages/antonythorpe/silvershop-unleashed)
 [![License](https://poser.pugx.org/antonythorpe/silvershop-unleashed/license)](https://packagist.org/packages/antonythorpe/silvershop-unleashed)
@@ -20,12 +20,29 @@ Keeps Silvershop in alignment with an external source of truth - the inventory s
 * The Order Build Task keeps the order status up to date.
 * Uses [Guzzle](http://docs.guzzlephp.org/en/latest/) to make the API calls (though easily replaced with another system).
 
+## Creating a Sales Order in Unleashed
+### Getting or Creating a Customer
+* The customer is logged in and has a Guid from Unleashed?
+    * true: use Guid of the Customer for the Sales Order
+    * false: GET Customer filtered by the email address
+        * if a Customer is returned.  Use the returned Guid of the Customer for the Sales Order
+        * if a Customer is not returned.  As there might already be another customer with the same Customer Code then GET Customer filtered by the Customer Code (the Company name or the first & last name)
+            * a Customer is returned.  Is the delivery address the same?
+                * true: It must be the same one.  Use the returned Guid of the Customer for the Sales Order.
+                * false: Add a random digit to the Customer Code.  POST Customer and use the returned Guid for the Sales Order
+            * a Customer is not returned.  POST Customer and use the returned Guid for the Sales Order
+
+### Adding an Order
+* Post SalesOrders with order data
+
 ## Limitations
 * Assumes that the Silvershop product prices exclude Tax
-* Does not utilised the 'Charge' line type for Shipping when Sales Orders are created
+* Does not utilise the 'Charge' line type for Shipping when Sales Orders are created
 * Discounts hardcoded to NIL in the Sales Order Items
-* They Product/Product Categories Build Tasks only sync existing items with Unleashed.  New items need to be added manually, via upload or modification to the existing Build Task.
-* Upon a paid order, will only send modifiers with a value to Unleashed
+* The Product/Product Categories Build Tasks only sync existing items with Unleashed.  New items need to be added manually, via upload or modification to the existing Build Task.
+* Will only send modifiers with a value to Unleashed
+* If a user is logged in and changes the email address in the checkout form, then this new email address will not be passed onto Unleashed - no PUT Customer calls available.
+* If a Guest purchases a second time with a unique email and delivery address then a new Customer will be created in Unleashed.  A random number will be attached to its Customer Code to avoid errors.
 
 ## Requirements
 * [Silvershop (a SilverStripe module)](https://github.com/silvershop/silvershop-core)
