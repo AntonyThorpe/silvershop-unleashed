@@ -37,7 +37,8 @@ abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
         'Picked' => 'Processing',
         'Packed' => 'Processing',
         'Dispatched' => 'Sent',
-        'Complete' => 'Complete'
+        'Complete' => 'Complete',
+        'Deleted' => 'MemberCancelled'
     ];
 
     public function run($request)

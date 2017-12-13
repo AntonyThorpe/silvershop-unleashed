@@ -23,9 +23,10 @@ class UnleashedOrderTest extends SapphireTest
         'Picked' => 'Processing',
         'Packed' => 'Processing',
         'Dispatched' => 'Sent',
-        'Complete' => 'Complete'
+        'Complete' => 'Complete',
+        'Deleted' => 'MemberCancelled'
     ];
-    
+
     public function testChangeOrderStatus()
     {
         $apidata_array = json_decode($this->jsondata, true);
