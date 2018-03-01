@@ -357,16 +357,18 @@ class Order extends DataExtension
 
                 // Add Modifiers that have an associated product_code
                 foreach ($modifiers->sort('Sort')->getIterator() as $modifier) {
+                    $line_total = round(floatval($modifier->Amount), $config->rounding_precision);
+
                     if ($modifier::config()->product_code &&
                         $modifier->Type !== 'Ignored' &&
-                        $modifier->value()
+                        !empty($line_total)
                     ) {
                         $line_number += 1;
                         $sales_order_line = [
                             'DiscountRate' => 0,
                             'Guid' => $modifier->Guid,
                             'LineNumber' => $line_number,
-                            'LineTotal' => round(floatval($modifier->Amount), $config->rounding_precision),
+                            'LineTotal' => $line_total,
                             'LineType' => null,
                             'OrderQuantity' => 1,
                             'Product' => [
