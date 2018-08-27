@@ -1,5 +1,7 @@
 <?php
 
+namespace AntonyThorpe\SilverShopUnleashed;
+
 /**
  * Utility
  */

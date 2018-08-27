@@ -1,7 +1,19 @@
 <?php
 
+namespace AntonyThorpe\SilverShopUnleashed;
+
 use Psr\Http\Message\ResponseInterface;
 use GuzzleHttp\Exception\RequestException;
+use DateTime;
+use DateTimeZone;
+use SilverStripe\Core\Convert;
+use SilverStripe\Dev\Debug;
+use SilverStripe\Control\Email\Email;
+use SilverShop\Page\Product;
+use SilverShop\Page\ProductCategory;
+use SilverShop\Extension\ShopConfigExtension;
+use AntonyThorpe\Consumer\Consumer;
+use AntonyThorpe\Consumer\Utilities;
 
 /**
  * Update Products with fresh data from Unleashed Inventory Management Software
@@ -21,6 +33,8 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
      * @var string
      */
     protected $description = "Update the Products in Silvershop with data from Unleashed.  Will not automatically bring over new items but will update Titles, Base Price, etc.";
+
+    protected $email_subject = "API Unleashed Software - Update Product Results";
 
     public function run($request)
     {
@@ -52,7 +66,6 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
                     $apidata = array_merge($apidata, $apidata_array['Items']);
                 }
             }
-
         } else {
             $query = [];
             $date = new DateTime($consumer->ExternalLastEdited);
@@ -81,6 +94,7 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
                     $apidata = array_merge($apidata, $apidata_array['Items']);
                 }
             }
+            var_dump($apidata);
         }
 
         $this->log('<h2>Preliminary Checks</h2>');
@@ -129,9 +143,9 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
 
         // Update
         $this->log('<h3>Update Product records in Silvershop</h3>');
-        $loader = ProductConsumerBulkLoader::create("Product");
-        $loader->transforms = array(
-            'Parent' => array(
+        $loader = ProductBulkLoader::create('SilverShop\Page\Product');
+        $loader->transforms = [
+            'Parent' => [
                 'callback' => function ($value, $placeholder) {
                     $obj = ProductCategory::get()->find('Guid', $value['Guid']);
                     if ($obj) {
@@ -140,33 +154,36 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
                         return ProductCategory::get()->find('Title', $value['GroupName']);
                     }
                 }
-            ),
-            'BasePrice' => array(
+            ],
+            'BasePrice' => [
                 'callback' => function ($value, $placeholder) {
                     return (float)$value;
                 }
-            ),
-            'Title' => array(
+            ],
+            'Title' => [
                 'callback' => function ($value, &$placeholder) {
                     $placeholder->URLSegment = Convert::raw2url($value);
                     return $value;
                 }
-            )
-        );
-        $results = $loader->updateRecords($apidata, $config->preview);
+            ]
+        ];
+        $results = $loader->updateRecords($apidata, $this->preview);
 
         if ($results->UpdatedCount()) {
             $this->log(Debug::text($results->getData()));
         }
         $this->log("Done");
-
+        Debug::show($results->Count());
+        Debug::show(!$this->preview);
+        Debug::show(Email::config()->admin_email);
+        Debug::show($this->email_subject);
         // Send email
-        if ($results->Count() && !$config->preview) {
+        if ($results->Count() && !$this->preview && Email::config()->admin_email && $this->email_subject) {
             // send email
             $email = Email::create(
-                UnleashedAPI::config()->email_from,
-                UnleashedAPI::config()->email_to,
-                $config->email_subject,
+                ShopConfigExtension::config()->email_from ? ShopConfigExtension::config()->email_from : Email::config()->admin_email,
+                Email::config()->admin_email,
+                $this->email_subject,
                 Debug::text($results->getData())
             );
             $dispatched = $email->send();
@@ -175,14 +192,12 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
             }
         }
 
-        if (!$config->preview && $apidata) {
+        if (!$this->preview && $apidata) {
             if (!$consumer) {
-                $consumer = Consumer::create(
-                    array(
-                        'Title' => 'ProductUpdate',
-                        'ExternalLastEditedKey' => 'LastModifiedOn'
-                    )
-                );
+                $consumer = Consumer::create([
+                    'Title' => 'ProductUpdate',
+                    'ExternalLastEditedKey' => 'LastModifiedOn'
+                ]);
             }
             $consumer->setMaxExternalLastEdited($apidata);
             $consumer->write();

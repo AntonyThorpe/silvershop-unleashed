@@ -1,9 +1,13 @@
 <?php
 
-class ProductConsumerBulkLoader extends ConsumerBulkLoader
+namespace AntonyThorpe\SilverShopUnleashed;
+
+use AntonyThorpe\Consumer\BulkLoader;
+
+class ProductBulkLoader extends BulkLoader
 {
     /**
-     * The default behaviour creating relations
+     * The default behaviour for creating relations
      * @var boolean
      */
     protected $relationCreateDefault = false;
@@ -14,7 +18,11 @@ class ProductConsumerBulkLoader extends ConsumerBulkLoader
      */
     public $recordCallback = 'setOtherProperties';
 
-    public $columnMap = array(
+    /**
+     * Column Map
+     * @var array
+     */
+    public $columnMap = [
         'Guid' => 'Guid',
         'ProductCode' => 'InternalItemID',
         'ProductDescription' => 'Title',
@@ -23,15 +31,18 @@ class ProductConsumerBulkLoader extends ConsumerBulkLoader
         'Width' => 'Width',
         'Height' => 'Height',
         'Depth' => 'Depth'
-    );
+    ];
 
-    public $duplicateChecks = array(
+    /**
+     * Keys that need to be unique
+     * @var array
+     */
+    public $duplicateChecks = [
         'Guid', 'InternalItemID'
-    );
+    ];
 
     /**
      * Specify a colsure to be run on every imported record to set other records
-     *
      * @param object $obj The placeholder
      * @param array $record A row from the external API
      */

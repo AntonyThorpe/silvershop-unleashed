@@ -8,13 +8,7 @@ If using Guzzle:
 ## Configuration
 Unleashed API Setup (relies on Guzzle).  See 'Integration/Unleashed API Access' in Unleashed for your id and key.
 ```yaml
----
-Name: unleashed
-After:
-  - 'silvershop/config#shopconfig'
-  - 'silvershop-unleashed/*'
----
-UnleashedAPI:
+AntonyThorpe\SilverShopUnleashed\UnleashedAPI:
   id: 'XXX'
   key: 'XXXXX'
   logfailedcalls: true
@@ -23,23 +17,21 @@ UnleashedAPI:
 
 Example for posting sales orders to Unleashed:
 ```yaml
-Order:
+AntonyThorpe\SilverShopUnleashed\Defaults:
   send_sales_orders_to_unleashed: true
   expected_days_to_deliver: 5  # five days from the paid date
-  tax_modifier_class_name: 'FlatTaxModifier'
+  tax_modifier_class_name: 'SilverShop\Model\Modifiers\Tax\FlatTax'
   # Note: some of the below optional settings must already exist in Unleashed
-  default_created_by: Steve
-  default_payment_term: 7 Days # Default is Same Day
-  default_customer_type: General
-  default_sales_order_group: Online
-  default_sales_person: Alex
-  default_source_id: web # This is handy.  A source id is later used to limit calls when updating Order Status (see UnleashedUpdateOrderTask)
+  created_by: Web
+  payment_term: 7 Days # Default is Same Day
+  customer_type: General
+  sales_order_group: Online
+  source_id: web # This is handy.  A source id is later used to limit calls when updating Order Status (see UnleashedUpdateOrderTask)
 
-SimpleShippingModifier:  # or ShippingFrameworkModifier if using silvershop-shipping
+SilverShop\Model\Modifiers\Shipping\Simple:  # or SilverShop\Shipping\ShippingFrameworkModifier if using silvershop-shipping
   product_code: Freight  # Freight is an existing Product Code in Unleashed
 
-
-FlatTaxModifier:
+SilverShop\Model\Modifiers\Tax\FlatTax:
   name: G.S.T.  # This matches a Tax Code in the Systems Settings of Unleashed
 ```
 
@@ -52,8 +44,8 @@ class SubClassNameOrdersFromUnleashedTask extends UnleashedUpdateOrderTask
 ```
 Plus override the BulkLoader configuration setting if needed:
 ```yaml
-Consumer:
-  publishPages: false  # to cancel automatically staging to Live (default: true)
+AntonyThorpe\Consumer\Consumer:
+  publishPages: false  # to cancel automatically staging to Live (default is true)
 ```
 
 See the [Documentation](documentation.md) for the next step.

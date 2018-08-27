@@ -1,7 +1,11 @@
 <?php
 
+namespace AntonyThorpe\SilverShopUnleashed;
+
 use Psr\Http\Message\ResponseInterface;
 use GuzzleHttp\Exception\RequestException;
+use SilverShop\Page\ProductCategory;
+use AntonyThorpe\Consumer\Utilities;
 
 /**
  * Compare Silvershop Categories against Product Categories in Unleashed Inventory Management Software
@@ -9,7 +13,7 @@ use GuzzleHttp\Exception\RequestException;
  * Compares and provides a report
  */
 
-class UnleashedCompareProductCategoriesTask extends UnleashedBuildTask
+abstract class UnleashedCompareProductCategoriesTask extends UnleashedBuildTask
 {
     /**
      * @var string
@@ -33,7 +37,7 @@ class UnleashedCompareProductCategoriesTask extends UnleashedBuildTask
             'https://api.unleashedsoftware.com/ProductGroups'
         );
 
-        // Response body
+        // Response body contents
         $unleashedCategoriesList = json_decode($response->getBody()->getContents(), true);
 
         if ($response->getStatusCode() == '200' && is_array($unleashedCategoriesList)) {

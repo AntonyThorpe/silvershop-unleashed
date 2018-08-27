@@ -1,11 +1,20 @@
 <?php
 
+namespace AntonyThorpe\SilverShopUnleashed\Tests;
+
+use SilverStripe\Dev\SapphireTest;
+use SilverShop\Model\Order;
+use SilverShop\Tests\ShopTest;
+use SilverShop\Page\Product;
+use SilverShop\Page\ProductCategory;
+use AntonyThorpe\SilverShopUnleashed\ProductBulkLoader;
+
 class UnleashedBulkLoaderUpdateRecordsTest extends SapphireTest
 {
-    protected static $fixture_file = array(
-      'silvershop/tests/fixtures/ShopMembers.yml',
-      'silvershop-unleashed/tests/fixtures/models.yml'
-    );
+    protected static $fixture_file = [
+        'vendor/silvershop/core/tests/php/Fixtures/ShopMembers.yml',
+        'fixtures/models.yml'
+    ];
 
     private $mp3player;
     private $socks;
@@ -16,15 +25,15 @@ class UnleashedBulkLoaderUpdateRecordsTest extends SapphireTest
         parent::setUp();
         ShopTest::setConfiguration(); //reset config
 
-        $this->mp3player = $this->objFromFixture('Product', 'mp3player');
-        $this->socks = $this->objFromFixture('Product', 'socks');
+        $this->mp3player = $this->objFromFixture(Product::class, 'mp3player');
+        $this->socks = $this->objFromFixture(Product::class, 'socks');
 
         //publish some product categories and products
-        $this->objFromFixture('ProductCategory', 'products')->publish('Stage', 'Live');
-        $this->objFromFixture('ProductCategory', 'clothing')->publish('Stage', 'Live');
-        $this->objFromFixture('ProductCategory', 'clearance')->publish('Stage', 'Live');
-        $this->objFromFixture('ProductCategory', 'musicplayers')->publish('Stage', 'Live');
-        $this->objFromFixture('ProductCategory', 'electronics')->publish('Stage', 'Live');
+        $this->objFromFixture(ProductCategory::class, 'products')->publish('Stage', 'Live');
+        $this->objFromFixture(ProductCategory::class, 'clothing')->publish('Stage', 'Live');
+        $this->objFromFixture(ProductCategory::class, 'clearance')->publish('Stage', 'Live');
+        $this->objFromFixture(ProductCategory::class, 'musicplayers')->publish('Stage', 'Live');
+        $this->objFromFixture(ProductCategory::class, 'electronics')->publish('Stage', 'Live');
         $this->mp3player->publish('Stage', 'Live');
         $this->socks->publish('Stage', 'Live');
     }
@@ -33,9 +42,9 @@ class UnleashedBulkLoaderUpdateRecordsTest extends SapphireTest
     {
         $apidata = json_decode($this->jsondata, true);
         $apidata = reset($apidata);
-        $loader = ProductConsumerBulkLoader::create("Product");
-        $loader->transforms = array(
-            'Parent' => array(
+        $loader = ProductBulkLoader::create('SilverShop\Page\Product');
+        $loader->transforms = [
+            'Parent' => [
                 'callback' => function ($value, $placeholder) {
                     if ($obj = ProductCategory::get()->find('Guid', $value)) {
                         return $obj;
@@ -43,8 +52,8 @@ class UnleashedBulkLoaderUpdateRecordsTest extends SapphireTest
                         return ProductCategory::get()->find('Title', $value);
                     }
                 }
-            )
-        );
+            ]
+        ];
         $results = $loader->updateRecords($apidata['Items']);
 
         // Check Results

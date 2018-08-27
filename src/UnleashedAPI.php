@@ -1,10 +1,15 @@
 <?php
 
+namespace AntonyThorpe\SilverShopUnleashed;
+
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Request;
 use Psr\Http\Message\ResponseInterface;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\RequestOptions;
+use SilverStripe\Core\Config\Config_ForClass;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
 
 /**
  * Settings to incorporate Unleashed API into a Guzzle Http Client
@@ -19,7 +24,7 @@ class UnleashedAPI extends Client
      */
     public static function config()
     {
-        return new Config_ForClass("UnleashedAPI");
+        return new Config_ForClass("AntonyThorpe\SilverShopUnleashed\UnleashedAPI");
     }
 
     /**
@@ -35,16 +40,10 @@ class UnleashedAPI extends Client
     public static $debug = false;
 
     /**
-     * Format for request
-     * @var string
-     */
-    protected static $format = 'json';
-
-    /**
      * id from Unleashed
      * @var string
      */
-    private static $id;
+    public static $id;
 
     /**
      * key from Unleashed
@@ -81,13 +80,14 @@ class UnleashedAPI extends Client
             },
             function (RequestException $reason) {
                 if (self::config()->logfailedcalls) {
-                    SS_Log::log(print_r("Request Exception", true), SS_Log::NOTICE);
-                    //SS_Log::log(print_r($reason->getMessage(), true), SS_Log::NOTICE);
+                    $logger = new Logger("unleashed-log");
+                    $logger->pushHandler(new StreamHandler('./z_silverstripe-unleashed.log', Logger::INFO));
+                    $logger->info($reason->getMessage());
                     if (!empty($reason->getResponse())) {
-                        SS_Log::log(print_r($reason->getResponse()->getBody()->getContents(), true), SS_Log::NOTICE);
+                        $logger->info(print_r($reason->getResponse()->getBody()->getContents(), true));
                     }
-                    SS_Log::log(print_r($reason->getRequest()->getMethod(), true), SS_Log::NOTICE);
-                    SS_Log::log(print_r($reason->getRequest()->getHeaders(), true), SS_Log::NOTICE);
+                    $logger->info(print_r($reason->getRequest()->getMethod(), true));
+                    $logger->info(print_r($reason->getRequest()->getHeaders(), true));
                 }
                 return $reason;
             }
@@ -115,18 +115,13 @@ class UnleashedAPI extends Client
             $params .= urldecode(http_build_query($config['query']));
         }
 
-        /* Unleashed will soon upgrade to TLS 1.2
-        $config['curl'] = [
-            CURLOPT_SSLVERSION => CURL_SSLVERSION_TLSv1_2
-        ];*/
-
         // add the headers
-        $config['headers'] = array(
-            'Content-Type' => self::config()->format,
-            'Accept' => 'application/' . self::config()->format,
+        $config['headers'] = [
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
             'api-auth-id' => self::config()->id,
             'api-auth-signature' => base64_encode(hash_hmac('sha256', $params, self::config()->key, true))
-        );
+        ];
 
         parent::__construct($config);
     }

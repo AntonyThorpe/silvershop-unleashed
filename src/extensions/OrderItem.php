@@ -1,8 +1,7 @@
-<?php namespace SilvershopUnleashed\Model;
+<?php namespace AntonyThorpe\SilvershopUnleashed;
 
-use DataExtension;
-use Utils;
-use SS_Log;
+//use AntonyThorpe\SilverShopUnleashed\Utils;
+use SilverStripe\ORM\DataExtension;
 
 class OrderItem extends DataExtension
 {

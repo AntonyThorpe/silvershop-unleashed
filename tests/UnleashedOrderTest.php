@@ -1,11 +1,18 @@
 <?php
 
+namespace AntonyThorpe\SilverShopUnleashed\Tests;
+
+use SilverStripe\Dev\SapphireTest;
+use SilverShop\Model\Order;
+use SilverShop\Tests\ShopTest;
+use AntonyThorpe\SilverShopUnleashed\OrderBulkLoader;
+
 class UnleashedOrderTest extends SapphireTest
 {
-    protected static $fixture_file = array(
-      'silvershop/tests/fixtures/ShopMembers.yml',
-      'silvershop-unleashed/tests/fixtures/models.yml'
-    );
+    protected static $fixture_file = [
+        'vendor/silvershop/core/tests/php/Fixtures/ShopMembers.yml',
+        'fixtures/models.yml'
+    ];
 
     public function setUp()
     {
@@ -33,15 +40,15 @@ class UnleashedOrderTest extends SapphireTest
         $apidata_array = reset($apidata_array);
         $apidata = $apidata_array['Items'];
 
-        $loader = OrderConsumerBulkLoader::create("Order");
-        $loader->transforms = array(
-            'Status' => array(
+        $loader = OrderBulkLoader::create('SilverShop\Model\Order');
+        $loader->transforms = [
+            'Status' => [
                 'callback' => function ($value, &$placeholder) {
                     // convert from Unleashed Sales Order status to Silvershop
                     return $this->order_status_map[$value];
                 }
-            )
-        );
+            ]
+        ];
         $results = $loader->updateRecords($apidata);
 
         // Check Results

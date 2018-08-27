@@ -1,11 +1,21 @@
 <?php
 
+namespace AntonyThorpe\SilverShopUnleashed\Tests;
+
+use SilverStripe\Core\Convert;
+use SilverStripe\Dev\SapphireTest;
+use SilverShop\Model\Order;
+use SilverShop\Tests\ShopTest;
+use SilverShop\Page\ProductCategory;
+use SilverStripe\Security\Member;
+use AntonyThorpe\SilverShopUnleashed\ProductCategoryBulkLoader;
+
 class UnleashedProductCategoryTest extends SapphireTest
 {
-    protected static $fixture_file = array(
-      'silvershop/tests/fixtures/ShopMembers.yml',
-      'silvershop-unleashed/tests/fixtures/models.yml'
-    );
+    protected static $fixture_file = [
+        'vendor/silvershop/core/tests/php/Fixtures/ShopMembers.yml',
+        'fixtures/models.yml'
+    ];
 
     public function setUp()
     {
@@ -14,12 +24,12 @@ class UnleashedProductCategoryTest extends SapphireTest
         ShopTest::setConfiguration(); //reset config
 
         //publish some product categories and products
-        $this->objFromFixture('ProductCategory', 'products')->publish('Stage', 'Live');
-        $this->objFromFixture('ProductCategory', 'clothing')->publish('Stage', 'Live');
-        $this->objFromFixture('ProductCategory', 'electronics')->publish('Stage', 'Live');
-        $this->objFromFixture('ProductCategory', 'musicplayers')->publish('Stage', 'Live');
-        $this->objFromFixture('ProductCategory', 'clearance')->publish('Stage', 'Live');
-        $this->objFromFixture('ProductCategory', 'newguy')->publish('Stage', 'Live');
+        $this->objFromFixture(ProductCategory::class, 'products')->publish('Stage', 'Live');
+        $this->objFromFixture(ProductCategory::class, 'clothing')->publish('Stage', 'Live');
+        $this->objFromFixture(ProductCategory::class, 'electronics')->publish('Stage', 'Live');
+        $this->objFromFixture(ProductCategory::class, 'musicplayers')->publish('Stage', 'Live');
+        $this->objFromFixture(ProductCategory::class, 'clearance')->publish('Stage', 'Live');
+        $this->objFromFixture(ProductCategory::class, 'newguy')->publish('Stage', 'Live');
     }
 
     public function testSetGuidAndAdjustTitle()
@@ -28,15 +38,15 @@ class UnleashedProductCategoryTest extends SapphireTest
         $apidata = reset($apidata);
 
         // Test the setting of a Guid
-        $loader = ProductCategoryConsumerBulkLoader::create("ProductCategory");
-        $loader->transforms = array(
-            'Title' => array(
+        $loader = ProductCategoryBulkLoader::create('SilverShop\Page\ProductCategory');
+        $loader->transforms = [
+            'Title' => [
                 'callback' => function ($value, &$placeholder) {
                     $placeholder->URLSegment = Convert::raw2url($value);
                     return $value;
                 }
-            )
-        );
+            ]
+        ];
         $results = $loader->updateRecords($apidata['Items']);
 
         // Check Results

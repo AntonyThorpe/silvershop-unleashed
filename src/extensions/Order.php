@@ -1,14 +1,14 @@
-<?php namespace SilvershopUnleashed\Model;
+<?php namespace AntonyThorpe\SilvershopUnleashed;
 
-use DataExtension;
-use ShopConfig;
-use Member;
-use HasGroupPricing;
 use DateTime;
-use UnleashedAPI;
-use Utils;
-use SS_Datetime;
-use SS_Log;
+use SilverStripe\Security\Member;
+use SilverStripe\ORM\FieldType\DBDatetime;
+use SilverStripe\ORM\DataExtension;
+use SilverShop\Extension\ShopConfigExtension;
+use MarkGuinn\SilverShopExtendedPricing\HasGroupPricing;  // not upgraded yet
+use AntonyThorpe\SilverShopUnleashed\UnleashedAPI;
+use AntonyThorpe\SilverShopUnleashed\Defaults;
+use AntonyThorpe\SilverShopUnleashed\Utils;
 
 class Order extends DataExtension
 {
@@ -16,64 +16,8 @@ class Order extends DataExtension
      * Record when an order is sent to Unleashed
      */
     private static $db = [
-        'OrderSentToUnleashed' => 'SS_Datetime'
+        'OrderSentToUnleashed' => 'Datetime'
     ];
-
-    /**
-     * Enable sending of Sales Orders to Unleashed
-     * @var boolean
-     */
-    private static $send_sales_orders_to_unleashed = false;
-
-    /**
-     * Declare the tax modifier used in Silvershop
-     *
-     * @example  'FlatTaxModifier'
-     * @var string
-     */
-    private static $tax_modifier_class_name = '';
-
-    /**
-     * Days following payment that delivery is expected
-     * @var int
-     */
-    private static $expected_days_to_deliver = 0;
-
-    /**
-     * Default CreatedBy
-     * @var string
-     */
-    private static $default_created_by = '';
-
-    /**
-     * Default payment term
-     * @var string
-     */
-    private static $default_payment_term = 'Same Day';
-
-    /**
-     * Default Customer Type
-     * @var string
-     */
-    private static $default_customer_type = '';
-
-    /**
-     * Default Sales Order Group
-     * @var string
-     */
-    private static $default_sales_order_group = '';
-
-    /**
-     * Default Sales Person
-     * @var string
-     */
-    private static $default_sales_person = '';
-
-    /**
-     * Default Source Id
-     * @var string
-     */
-    private static $default_source_id = '';
 
     /**
      * Apply Guid if absent
@@ -85,7 +29,6 @@ class Order extends DataExtension
             $this->owner->Guid = (string) Utils::createGuid();
         }
     }
-
 
     /**
      * Return the Address Name
@@ -127,15 +70,15 @@ class Order extends DataExtension
 
     /**
      * Send a sales order to Unleashed upon paid status
-     *
      * Note: create Customer first
      */
     public function onAfterWrite()
     {
         parent::onAfterWrite();
         $config = $this->owner->config();
+        $defaults = Defaults::config();
 
-        if ($config->send_sales_orders_to_unleashed
+        if ($defaults->send_sales_orders_to_unleashed
             && $this->owner->Status == 'Paid'
             && !$this->owner->OrderSentToUnleashed) {
             // Definitions
@@ -144,15 +87,15 @@ class Order extends DataExtension
             $shipping_address = $order->ShippingAddress();
             $member = $order->Member();
             $comments = $order->Notes;
-            $countries = ShopConfig::config()->iso_3166_country_codes;
+            $countries = ShopConfigExtension::config()->iso_3166_country_codes;
             $subtotal = $order->Total();
-            $sell_price_tier = ShopConfig::current()->CustomerGroup()->Title;
+            $sell_price_tier = ShopConfigExtension::current()->CustomerGroup()->Title;
             $taxable = false;
             $tax_code = '';
             $tax_total = 0;
-            $tax_class_name = $config->tax_modifier_class_name;
+            $tax_class_name = $defaults->tax_modifier_class_name;
             $modifiers = $order->Modifiers();
-            $tax_modifier = $order->getModifier($config->tax_modifier_class_name);
+            $tax_modifier = $order->getModifier($defaults->tax_modifier_class_name);
             $shipping_method = '';
             $sales_order_lines = [];
             $line_number = 0;
@@ -282,7 +225,7 @@ class Order extends DataExtension
                     'ContactLastName' => $member->Surname,
                     'Email' => $member->Email,
                     'Guid' => $member->Guid,
-                    'PaymentTerm' => $config->default_payment_term,
+                    'PaymentTerm' => $defaults->payment_term,
                     'PrintPackingSlipInsteadOfInvoice' => true,
                     'SellPriceTier' => $sell_price_tier
                 ];
@@ -291,12 +234,12 @@ class Order extends DataExtension
                     $body['Taxable'] = $taxable;
                 }
 
-                if ($config->default_created_by) {
-                    $body['CreatedBy'] = $config->default_created_by;
+                if ($defaults->created_by) {
+                    $body['CreatedBy'] = $defaults->created_by;
                 }
 
-                if ($config->default_customer_type) {
-                    $body['CustomerType'] = $config->default_customer_type;
+                if ($defaults->customer_type) {
+                    $body['CustomerType'] = $defaults->customer_type;
                 }
 
                 if ($billing_address->Phone) {  // add phone number if available
@@ -322,8 +265,8 @@ class Order extends DataExtension
                 $date_placed = new DateTime($order->Placed);
                 $date_paid = new DateTime($order->Paid);
                 $date_required = new DateTime($order->Paid);
-                if ($config->expected_days_to_deliver) {
-                    $date_required->modify('+' . $config->expected_days_to_deliver . 'day');
+                if ($defaults->expected_days_to_deliver) {
+                    $date_required->modify('+' . $defaults->expected_days_to_deliver . 'day');
                 }
 
                 // Sales Order Lines
@@ -389,7 +332,7 @@ class Order extends DataExtension
                 }
 
                 // Shipping Module
-                if (class_exists('ShippingMethod')) {
+                if (class_exists('SilverShop\Shipping\Model\ShippingMethod')) {
                     $name = $order->ShippingMethod()->Name;
                     if ($name) {
                         $shipping_method = $name;
@@ -432,16 +375,12 @@ class Order extends DataExtension
                     $body['DeliveryName'] = $shipping_method;
                 }
 
-                if ($config->default_sales_order_group) {
-                    $body['SalesOrderGroup'] = $config->default_sales_order_group;
+                if ($defaults->sales_order_group) {
+                    $body['SalesOrderGroup'] = $defaults->sales_order_group;
                 }
 
-                if ($config->default_sales_person) {
-                    $body['SalesPerson'] = $config->default_sales_person;
-                }
-
-                if ($config->default_source_id) {
-                    $body['SourceId'] = $config->default_source_id;
+                if ($defaults->source_id) {
+                    $body['SourceId'] = $defaults->source_id;
                 }
 
                 $this->owner->extend('updateUnleashedSalesOrder', $body);
@@ -452,7 +391,7 @@ class Order extends DataExtension
                     ['json' => $body]
                 );
                 if ($response->getReasonPhrase() == 'Created') {
-                    $this->owner->OrderSentToUnleashed = SS_Datetime::now()->Rfc2822();
+                    $this->owner->OrderSentToUnleashed = DBDatetime::now()->Rfc2822();
                     $this->owner->write();
                 }
             }

@@ -1,7 +1,15 @@
 <?php
 
+namespace AntonyThorpe\SilverShopUnleashed;
+
 use Psr\Http\Message\ResponseInterface;
 use GuzzleHttp\Exception\RequestException;
+use DateTime;
+use SilverStripe\Dev\Debug;
+use SilverStripe\Control\Email\Email;
+use SilverShop\Extension\ShopConfigExtension;
+use AntonyThorpe\Consumer\Consumer;
+use AntonyThorpe\SilvershopUnleashed\Defaults;
 
 /**
  * Update Order with fresh data from Unleashed's Sales Orders
@@ -21,6 +29,8 @@ abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
      * @var string
      */
     protected $description = "Update Orders in Silvershop with with data received from Unleashed.  Will update the OrderStatus of the Silvershop items.";
+
+    protected $email_subject = "API Unleashed Software - Update Order Results";
 
     /**
      * Order status map from Unleashed to Silvershop
@@ -45,7 +55,7 @@ abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
     {
         // Definitions
         $config = $this->config();
-        $default_source_id = Order::config()->default_source_id;
+        $default_source_id = Defaults::config()->source_id;
         $query = [];
         $consumer = Consumer::get()->find('Title', 'OrderUpdate');  // to get modifiedSince
 
@@ -85,16 +95,16 @@ abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
             }
 
             $this->log('<h3>Update the OrderStatus in Silvershop</h3>');
-            $loader = OrderConsumerBulkLoader::create("Order");
-            $loader->transforms = array(
-                'Status' => array(
+            $loader = OrderBulkLoader::create('SilverShop\Model\Order');
+            $loader->transforms = [
+                'Status' => [
                     'callback' => function ($value, &$placeholder) {
                         // convert from Unleashed Sales Order status to Silvershop
                         return $this->order_status_map[$value];
                     }
-                )
-            );
-            $results = $loader->updateRecords($apidata, $config->preview);
+                ]
+            ];
+            $results = $loader->updateRecords($apidata, $this->preview);
 
             if ($results->UpdatedCount()) {
                 $this->log(Debug::text($results->getData()));
@@ -102,34 +112,31 @@ abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
             $this->log("Done");
 
             // Send email
-            if ($results->Count() && $config->email_subject && !$config->preview) {
+            if ($results->Count() && $this->email_subject && !$this->preview && Email::config()->admin_email) {
                 $data = $results->getData();
                 $email = Email::create(
-                    ShopConfig::config()->email_from ? ShopConfig::config()->email_from : Email::config()->admin_email,
+                    ShopConfigExtension::config()->email_from ? ShopConfigExtension::config()->email_from : Email::config()->admin_email,
                     Email::config()->admin_email,
-                    $config->email_subject,
+                    $this->email_subject,
                     Debug::text($data)
                 );
                 $dispatched = $email->send();
                 if ($dispatched) {
-                    $this->log('Email sent');
+                    $this->log("Email sent");
                 }
             }
 
             // Create/update Consumer
-            if (!$config->preview && $apidata) {
+            if (!$this->preview && $apidata) {
                 if (!$consumer) {
-                    $consumer = Consumer::create(
-                        array(
-                            'Title' => 'OrderUpdate',
-                            'ExternalLastEditedKey' => 'LastModifiedOn'
-                        )
-                    );
+                    $consumer = Consumer::create([
+                        'Title' => 'OrderUpdate',
+                        'ExternalLastEditedKey' => 'LastModifiedOn'
+                    ]);
                 }
                 $consumer->setMaxExternalLastEdited($apidata);
                 $consumer->write();
             }
-
         } // end if response == 200
     }
 }

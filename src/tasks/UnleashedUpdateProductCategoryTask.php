@@ -1,7 +1,15 @@
 <?php
 
+namespace AntonyThorpe\SilverShopUnleashed;
+
 use Psr\Http\Message\ResponseInterface;
 use GuzzleHttp\Exception\RequestException;
+use SilverStripe\Dev\Debug;
+use SilverStripe\Core\Convert;
+use SilverStripe\Control\Email\Email;
+use SilverShop\Extension\ShopConfigExtension;
+use SilverShop\Page\ProductCategory;
+use AntonyThorpe\Consumer\Utilities;
 
 /**
  * Update ProductCategory with fresh data from Unleashed Software Inventory system
@@ -20,8 +28,9 @@ abstract class UnleashedUpdateProductCategoryTask extends UnleashedBuildTask
     /**
      * @var string
      */
-    protected $description = "Update Product Categories in Silvershop with with data from Unleashed.  Will not automatically bring over new items but will update Title and record the Guid.";
+    protected $description = "Update Product Categories in Silvershop with with Product Group data from Unleashed.  Will not automatically bring over new items but will update Title and record the Guid.";
 
+    protected $email_subject = "API Unleashed Software - Update Product Categories Results";
 
     public function run($request)
     {
@@ -76,10 +85,10 @@ abstract class UnleashedUpdateProductCategoryTask extends UnleashedBuildTask
 
 
         $this->log('<h2>Update Silvershop Product Categories from Unleashed</h2>');
-        $loader_clear = ProductCategoryConsumerBulkLoader::create("ProductCategory");
+        $loader_clear = ProductCategoryBulkLoader::create('SilverShop\Page\ProductCategory');
 
         $this->log('<h3>Clear a Guid from the Silvershop Product Category if it does not exist</h3>');
-        $results_absent = $loader_clear->clearAbsentRecords($apidata, 'Guid', 'Guid', $config->preview);
+        $results_absent = $loader_clear->clearAbsentRecords($apidata, 'Guid', 'Guid', $this->preview);
         if ($results_absent->UpdatedCount()) {
             $this->log(Debug::text($results_absent->getData()));
         }
@@ -87,16 +96,16 @@ abstract class UnleashedUpdateProductCategoryTask extends UnleashedBuildTask
 
 
         $this->log('<h3>Update Product Category records in Silvershop</h3>');
-        $loader = ProductCategoryConsumerBulkLoader::create("ProductCategory");
-        $loader->transforms = array(
-            'Title' => array(
+        $loader = ProductCategoryBulkLoader::create('SilverShop\Page\ProductCategory');
+        $loader->transforms = [
+            'Title' => [
                 'callback' => function ($value, &$placeholder) {
                     $placeholder->URLSegment = Convert::raw2url($value);
                     return $value;
                 }
-            )
-        );
-        $results = $loader->updateRecords($apidata, $config->preview);
+            ]
+        ];
+        $results = $loader->updateRecords($apidata, $this->preview);
         if ($results->UpdatedCount()) {
             $this->log(Debug::text($results->getData()));
         }
@@ -104,13 +113,13 @@ abstract class UnleashedUpdateProductCategoryTask extends UnleashedBuildTask
 
         // Send email
         $count = $results_absent->Count() + $results->Count();
-        if ($count && $config->email_subject && !$config->preview) {
+        if ($count && $this->email_subject && !$this->preview && Email::config()->admin_email) {
             $data = $results_absent->getData();
             $data->merge($results->getData());
             $email = Email::create(
-                ShopConfig::config()->email_from ? ShopConfig::config()->email_from : Email::config()->admin_email,
+                ShopConfigExtension::config()->email_from ? ShopConfigExtension::config()->email_from : Email::config()->admin_email,
                 Email::config()->admin_email,
-                $config->email_subject,
+                $this->email_subject,
                 Debug::text($data)
             );
             $dispatched = $email->send();
