@@ -88,7 +88,7 @@ class Order extends DataExtension
             $member = $order->Member();
             $comments = $order->Notes;
             $countries = ShopConfigExtension::config()->iso_3166_country_codes;
-            $subtotal = $order->Total();
+            $subtotal = round(floatval($order->Total()), $config->rounding_precision);  // Subtotal = Total less Tax Modifier
             $sell_price_tier = ShopConfigExtension::current()->CustomerGroup()->Title;
             $taxable = false;
             $tax_code = '';
