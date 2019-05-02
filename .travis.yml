@@ -15,6 +15,7 @@ before_script:
   # Install composer dependencies
   - composer validate
   - composer require --prefer-dist --prefer-stable --no-update --no-suggest silverstripe/recipe-cms:^4
+  - composer require --prefer-dist --no-update league/omnipay:^3
   - composer require --prefer-dist --prefer-stable --no-update --no-suggest phpunit/phpunit:^5.7
   - composer install --prefer-dist --no-interaction --no-progress --no-suggest --optimize-autoloader --verbose --profile
 
