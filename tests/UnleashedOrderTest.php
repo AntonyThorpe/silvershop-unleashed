@@ -6,6 +6,7 @@ use SilverStripe\Dev\SapphireTest;
 use SilverShop\Model\Order;
 use SilverShop\Tests\ShopTest;
 use AntonyThorpe\SilverShopUnleashed\OrderBulkLoader;
+use AntonyThorpe\SilverShopUnleashed\Defaults;
 
 class UnleashedOrderTest extends SapphireTest
 {
@@ -16,7 +17,7 @@ class UnleashedOrderTest extends SapphireTest
 
     public function setUp()
     {
-        Order::config()->send_sales_orders_to_unleashed = false;
+        Defaults::config()->send_sales_orders_to_unleashed = false;
         parent::setUp();
         ShopTest::setConfiguration(); //reset config
     }

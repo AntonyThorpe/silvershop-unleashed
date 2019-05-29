@@ -121,10 +121,10 @@ class Order extends DataExtension
 
             // Taxation (e.g. Sales Tax/GST)
             if (!empty($tax_modifier)) {
-                $subtotal -= $tax_modifier->Amount;
+                $subtotal -= round(floatval($tax_modifier->Amount), $config->rounding_precision);
                 $taxable = true;
                 $tax_code = $tax_modifier::config()->name;
-                $tax_total = floatval($tax_modifier->Amount);
+                $tax_total = round(floatval($tax_modifier->Amount), $config->rounding_precision);
             }
 
             // Define Customer Code/Name (use Company field of BillingAddress to allow for B2B eCommerce sites)
@@ -260,7 +260,6 @@ class Order extends DataExtension
 
             // Prepare Sales Order data
             if ($member->Guid) {  // Skip if previous calls to Customer have failed and the Guid has not been set
-
                 // Dates
                 $date_placed = new DateTime($order->Placed);
                 $date_paid = new DateTime($order->Paid);
@@ -362,7 +361,7 @@ class Order extends DataExtension
                     'ReceivedDate' => $date_placed->format('Y-m-d\TH:i:s'),
                     'RequiredDate' => $date_required->format('Y-m-d\TH:i:s'),
                     'SalesOrderLines' => $sales_order_lines,
-                    'SubTotal' => $subtotal,
+                    'SubTotal' => round(floatval($subtotal), $config->rounding_precision),
                     'Tax' => [
                         'TaxCode' => $tax_code
                     ],

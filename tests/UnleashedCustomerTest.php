@@ -5,6 +5,7 @@ namespace AntonyThorpe\SilverShopUnleashed\Tests;
 use SilverStripe\Dev\SapphireTest;
 use SilverShop\Model\Order;
 use SilverShop\Tests\ShopTest;
+use AntonyThorpe\SilverShopUnleashed\Defaults;
 
 class UnleashedCustomerTest extends SapphireTest
 {
@@ -16,7 +17,7 @@ class UnleashedCustomerTest extends SapphireTest
 
     public function setUp()
     {
-        Order::config()->send_sales_orders_to_unleashed = false;
+        Defaults::config()->send_sales_orders_to_unleashed = false;
         parent::setUp();
         ShopTest::setConfiguration(); //reset config
         $this->order = $this->objFromFixture(Order::class, "cart1");

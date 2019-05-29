@@ -8,6 +8,7 @@ use SilverShop\Tests\ShopTest;
 use SilverShop\Page\Product;
 use SilverShop\Page\ProductCategory;
 use AntonyThorpe\SilverShopUnleashed\ProductBulkLoader;
+use AntonyThorpe\SilverShopUnleashed\Defaults;
 
 class UnleashedBulkLoaderUpdateRecordsTest extends SapphireTest
 {
@@ -21,7 +22,7 @@ class UnleashedBulkLoaderUpdateRecordsTest extends SapphireTest
 
     public function setUp()
     {
-        Order::config()->send_sales_orders_to_unleashed = false;
+        Defaults::config()->send_sales_orders_to_unleashed = false;
         parent::setUp();
         ShopTest::setConfiguration(); //reset config
 
