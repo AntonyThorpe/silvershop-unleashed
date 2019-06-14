@@ -54,7 +54,6 @@ abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
     public function run($request)
     {
         // Definitions
-        $config = $this->config();
         $default_source_id = Defaults::config()->source_id;
         $query = [];
         $consumer = Consumer::get()->find('Title', 'OrderUpdate');  // to get modifiedSince
@@ -98,7 +97,7 @@ abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
             $loader = OrderBulkLoader::create('SilverShop\Model\Order');
             $loader->transforms = [
                 'Status' => [
-                    'callback' => function ($value, &$placeholder) {
+                    'callback' => function ($value) {
                         // convert from Unleashed Sales Order status to Silvershop
                         return $this->order_status_map[$value];
                     }

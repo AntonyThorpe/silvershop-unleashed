@@ -5,7 +5,6 @@ use SilverStripe\Security\Member;
 use SilverStripe\ORM\FieldType\DBDatetime;
 use SilverStripe\ORM\DataExtension;
 use SilverShop\Extension\ShopConfigExtension;
-use MarkGuinn\SilverShopExtendedPricing\HasGroupPricing;  // not upgraded yet
 use AntonyThorpe\SilverShopUnleashed\UnleashedAPI;
 use AntonyThorpe\SilverShopUnleashed\Defaults;
 use AntonyThorpe\SilverShopUnleashed\Utils;
@@ -69,8 +68,225 @@ class Order extends DataExtension
     }
 
     /**
+     * add the address components to the body array
+     * @param array $body
+     * @param object $order
+     * @param string $type (either Postal or Physical)
+     * @return array $body
+     */
+    public function setBodyAddress($body, $order, $type)
+    {
+        $countries = ShopConfigExtension::config()->iso_3166_country_codes;
+
+        if ($type == 'Postal') {
+            $address = $order->BillingAddress();
+            array_push(
+                $body['Addresses'],
+                [
+                    'AddressName' => $this->getAddressName($address),
+                    'AddressType' => $type,
+                    'City' => $address->City,
+                    'Country' => $countries[$address->Country],
+                    'PostalCode' => $address->PostalCode,
+                    'Region' => $address->State,
+                    'StreetAddress' => $address->Address,
+                    'StreetAddress2' => $address->AddressLine2
+                ]
+            );
+        }
+
+        if ($type == 'Physical') {
+            $address = $order->ShippingAddress();
+            $body['DeliveryCity'] = $address->City;
+            $body['DeliveryCountry'] = $countries[$address->Country];
+            $body['DeliveryPostCode'] = $address->PostalCode;
+            $body['DeliveryRegion'] = $address->State;
+            $body['DeliveryStreetAddress'] = $address->Address;
+            $body['DeliveryStreetAddress2'] = $address->AddressLine2;
+
+            array_push(
+                $body['Addresses'],
+                [
+                    'AddressName' => $this->getAddressName($address),
+                    'AddressType' => 'Physical',
+                    'City' => $address->City,
+                    'Country' => $countries[$address->Country],
+                    'PostalCode' => $address->PostalCode,
+                    'Region' => $address->State,
+                    'StreetAddress' => $address->Address,
+                    'StreetAddress2' => $address->AddressLine2
+                ]
+            );
+
+            array_push(
+                $body['Addresses'],
+                [
+                    'AddressName' => $this->getAddressName($address),
+                    'AddressType' => 'Shipping',
+                    'City' => $address->City,
+                    'Country' => $countries[$address->Country],
+                    'PostalCode' => $address->PostalCode,
+                    'Region' => $address->State,
+                    'StreetAddress' => $address->Address,
+                    'StreetAddress2' => $address->AddressLine2
+                ]
+            );
+        }
+
+        return $body;
+    }
+
+    /**
+     * add the currency code to the body array
+     * @param array $body
+     * @param object $order
+     * @return array $body
+     */
+    public function setBodyCurrencyCode($body, $order)
+    {
+        $body['Currency']['CurrencyCode'] = $order->Currency();
+        return $body;
+    }
+
+    /**
+     * Add the Customer Code/Name (use Company field of BillingAddress to allow for B2B eCommerce sites)
+     * @param array $body
+     * @param object $order
+     * @return array $body
+     */
+    public function setBodyCustomerCodeAndName($body, $order)
+    {
+        $billing_address = $order->BillingAddress();
+        if ($billing_address->Company) {
+            // use Organisation name
+            $body['CustomerCode'] = $billing_address->Company;
+            $body['CustomerName'] = $billing_address->Company;
+        } else {
+            // use Contact full name instead
+            $body['CustomerCode'] = $order->getName();
+            $body['CustomerName'] = $order->getName();
+        }
+        return $body;
+    }
+
+    /**
+     * Set Delivery Method and Delivery Name
+     * Allow for the SilverShop Shipping module
+     * @param array $body
+     * @param object $order
+     * @return array $body
+     */
+    public function setBodyDeliveryMethodAndDeliveryName($body, $order, $shipping_modifier_class_name)
+    {
+        $shipping_modifier = $order->getModifier($shipping_modifier_class_name);
+        if (!empty($shipping_modifier)) {
+            $body['DeliveryMethod'] = $shipping_modifier::config()->product_code;
+            $body['DeliveryName'] = $shipping_modifier::config()->product_code;
+        }
+        return $body;
+    }
+
+    /**
+     * Set Sales Order Lines
+     * @param array $body
+     * @param object $order
+     * @param string $tax_modifier_class_name
+     * @param int $rounding_precision
+     * @return array $body
+     */
+    public function setBodySalesOrderLines($body, $order, $tax_modifier_class_name, $rounding_precision)
+    {
+        $line_number = 0;
+
+        // Sales Order Lines
+        foreach ($order->Items()->getIterator() as $item) {
+            // Definitions
+            $product = $item->Product();
+            $line_number += 1;
+            $sales_order_line = [
+                'DiscountRate' => 0,
+                'Guid' => $item->Guid,
+                'LineNumber' => (int) $line_number,
+                'LineType' => null,
+                'LineTotal' => round(floatval($item->Total()), $rounding_precision),
+                'OrderQuantity' => (int) $item->Quantity,
+                'Product' => [
+                    'Guid' => $product->Guid
+                ],
+                'UnitPrice' => round(floatval($product->getPrice()), $rounding_precision)
+            ];
+            if ($tax_modifier_class_name) {
+                $tax_calculator = new $tax_modifier_class_name;
+                $sales_order_line['LineTax'] = round(
+                    $tax_calculator->value($item->Total()),
+                    $rounding_precision
+                );
+                $sales_order_line['LineTaxCode'] = $body['Tax']['TaxCode'];
+            }
+            $body['SalesOrderLines'][] = $sales_order_line;
+        }
+
+        // Add Modifiers that have a product_code
+        foreach ($order->Modifiers()->sort('Sort')->getIterator() as $modifier) {
+            $line_total = round(floatval($modifier->Amount), $rounding_precision);
+
+            if ($modifier::config()->product_code &&
+                $modifier->Type !== 'Ignored' &&
+                !empty($line_total)
+            ) {
+                $line_number += 1;
+                $sales_order_line = [
+                    'DiscountRate' => 0,
+                    'Guid' => $modifier->Guid,
+                    'LineNumber' => (int) $line_number,
+                    'LineTotal' => $line_total,
+                    'LineType' => null,
+                    'OrderQuantity' => 1,
+                    'Product' => [
+                        'ProductCode' => $modifier::config()->product_code,
+                    ],
+                    'UnitPrice' => round(floatval($modifier->Amount), $rounding_precision)
+                ];
+                if ($tax_modifier_class_name) {
+                    $tax_calculator = new $tax_modifier_class_name;
+                    $sales_order_line['LineTax'] = round(
+                        $tax_calculator->value($modifier->Amount),
+                        $rounding_precision
+                    );
+                    $sales_order_line['LineTaxCode'] = $body['Tax']['TaxCode'];
+                }
+                $body['SalesOrderLines'][] = $sales_order_line;
+            }
+        }
+        return $body;
+    }
+
+    /**
+     * Calculate the SubTotal
+     * @param array $body
+     * @param object $order
+     * @param string $tax_modifier_class_name
+     * @param int $rounding_precision
+     * @return array $body
+     */
+    public function setBodySubTotalAndTax($body, $order, $tax_modifier_class_name, $rounding_precision)
+    {
+        $subtotal = round(floatval($order->Total()), $rounding_precision);  // Subtotal = Total less Tax Modifier
+        $tax_modifier = $order->getModifier($tax_modifier_class_name);
+
+        if (!empty($tax_modifier)) {
+            $subtotal = bcsub($subtotal, $tax_modifier->Amount, $rounding_precision);
+            $body['Taxable'] = true;
+            $body['Tax']['TaxCode'] = $tax_modifier::config()->tax_code;
+            $body['TaxTotal'] = round(floatval($tax_modifier->Amount), $rounding_precision);
+        }
+        $body['SubTotal'] = $subtotal;
+        return $body;
+    }
+
+    /**
      * Send a sales order to Unleashed upon paid status
-     * Note: create Customer first
+     * May need to create the Customer first
      */
     public function onAfterWrite()
     {
@@ -83,58 +299,80 @@ class Order extends DataExtension
             && !$this->owner->OrderSentToUnleashed) {
             // Definitions
             $order = $this->owner;
-            $billing_address = $order->BillingAddress();
-            $shipping_address = $order->ShippingAddress();
             $member = $order->Member();
-            $comments = $order->Notes;
-            $countries = ShopConfigExtension::config()->iso_3166_country_codes;
-            $subtotal = round(floatval($order->Total()), $config->rounding_precision);  // Subtotal = Total less Tax Modifier
-            $sell_price_tier = ShopConfigExtension::current()->CustomerGroup()->Title;
-            $taxable = false;
-            $tax_code = '';
-            $tax_total = 0;
-            $tax_class_name = $defaults->tax_modifier_class_name;
-            $modifiers = $order->Modifiers();
-            $tax_modifier = $order->getModifier($defaults->tax_modifier_class_name);
-            $shipping_method = '';
-            $sales_order_lines = [];
-            $line_number = 0;
+            $date_paid = new DateTime($order->Paid);
+            $date_placed = new DateTime($order->Placed);
+            $body = [
+                'Addresses' => [],
+                'Currency' => [],
+                'Customer' => [],
+                'DiscountRate' => 0,
+                'Guid' => $order->Guid,
+                'OrderDate' => $date_placed->format('Y-m-d\TH:i:s'),
+                'OrderNumber' => $order->Reference,
+                'OrderStatus' => $defaults->order_status,
+                'PaymentDueDate' => $date_paid->format('Y-m-d\TH:i:s'),
+                'PaymentTerm' => $defaults->payment_term,
+                'PrintPackingSlipInsteadOfInvoice' => $defaults->print_packingslip_instead_of_invoice,
+                'ReceivedDate' => $date_placed->format('Y-m-d\TH:i:s'),
+                'SalesOrderLines' => [],
+                'SellPriceTier' => ShopConfigExtension::current()->CustomerGroup()->Title,
+                'Taxable' => false,
+                'Tax'  => [],
+                'Total' => round(floatval($order->Total()), $config->rounding_precision),
+            ];
 
-            // Customer
-            if (!$member->exists()) {  // Create Member for Guests
+            $body = $this->setBodyAddress($body, $order, 'Postal');
+            $body = $this->setBodyAddress($body, $order, 'Physical');
+            $body = $this->setBodyCurrencyCode($body, $order);
+            $body = $this->setBodyCustomerCodeAndName($body, $order);
+            $body = $this->setBodySubTotalAndTax($body, $order, $defaults->tax_modifier_class_name, $config->rounding_precision);
+            $body = $this->setBodyDeliveryMethodAndDeliveryName($body, $order, $defaults->shipping_modifier_class_name);
+            $body = $this->setBodySalesOrderLines($body, $order, $defaults->tax_modifier_class_name, $config->rounding_precision);
+
+            // Add optional defaults
+            if ($defaults->created_by) {
+                $body['CreatedBy'] = $defaults->created_by;
+            }
+
+            if ($defaults->customer_type) {
+                $body['CustomerType'] = $defaults->customer_type;
+            }
+
+            if ($defaults->sales_order_group) {
+                $body['SalesOrderGroup'] = $defaults->sales_order_group;
+            }
+
+            if ($defaults->source_id) {
+                $body['SourceId'] = $defaults->source_id;
+            }
+
+            // add phone number if available
+            if ($order->BillingAddress()->Phone) {
+                $body['PhoneNumber'] = $order->BillingAddress()->Phone;
+            }
+
+            // add required date
+            $date_required = new DateTime($order->Paid);
+            if ($defaults->expected_days_to_deliver) {
+                $date_required->modify('+' . $defaults->expected_days_to_deliver . 'day');
+            }
+            $body['RequiredDate'] = $date_required->format('Y-m-d\TH:i:s');
+
+            if ($order->Notes) {
+                $body['Comments'] = $order->Notes;
+            }
+
+            // Create Member for Guests
+            if (!$member->exists()) {
                 $member = Member::create();
                 $member->FirstName = $order->FirstName;
                 $member->Surname = $order->Surname;
                 $member->Email = $order->getLatestEmail();
             }
 
-            // Selling Price Tier if Customer set with a different pricecard using the Extended Pricing Module
-            if (class_exists('HasGroupPricing') && $member->Groups()->exists()) {
-                $levels = HasGroupPricing::get_levels();
-                foreach ($member->Groups() as $group) {
-                    if (array_key_exists($group->Code, $levels)) {
-                        // Assign member specific group
-                        $sell_price_tier = $group->Title;
-                    }
-                }
-            }
-
-            // Taxation (e.g. Sales Tax/GST)
-            if (!empty($tax_modifier)) {
-                $subtotal -= round(floatval($tax_modifier->Amount), $config->rounding_precision);
-                $taxable = true;
-                $tax_code = $tax_modifier::config()->name;
-                $tax_total = round(floatval($tax_modifier->Amount), $config->rounding_precision);
-            }
-
-            // Define Customer Code/Name (use Company field of BillingAddress to allow for B2B eCommerce sites)
-            if ($billing_address->Company) {
-                $customer_code_and_name = $billing_address->Company;    // use Organisation name
-            } else {
-                $customer_code_and_name = $order->getName();  // use Contact full name instead
-            }
-
-            if (!$member->Guid) {  // See if New Customer/Guest has previously purchased
+            // See if New Customer/Guest has previously purchased
+            if (!$member->Guid) {
                 $response = UnleashedAPI::sendCall(
                     'GET',
                     'https://api.unleashedsoftware.com/Customers?contactEmail=' .  $member->Email
@@ -147,11 +385,11 @@ class Order extends DataExtension
                         // Email address exists
                         $member->Guid = $items[0]['Guid'];
                     } else {
-                        // A Customer is not returned so we have a unique email address.
-                        // Check to see if the Customer Code exists (we cannot double up on the Customer Code)
+                        // A Customer is not returned, we have a unique email address.
+                        // Check to see if the Customer Code exists (note that the Customer Code cannot be doubled up)
                         $response = UnleashedAPI::sendCall(
                             'GET',
-                            'https://api.unleashedsoftware.com/Customers?customerCode=' .  $customer_code_and_name
+                            'https://api.unleashedsoftware.com/Customers?customerCode=' . $body['CustomerCode']
                         );
 
                         if ($response->getStatusCode() == '200') {
@@ -160,15 +398,15 @@ class Order extends DataExtension
                             if ($items) {
                                 // A Customer Code already exists (and the email address is unique).
                                 // If the address is the same then this is the Customer
-                                if ($this->matchCustomerAddress($items, $shipping_address)) {
+                                if ($this->matchCustomerAddress($items, $order->ShippingAddress())) {
                                     $member->Guid = $items[0]['Guid'];
 
                                     //Note the existing email address in the Comment
                                     //PUT Customer is not available in Unleashed
-                                    if ($comments) {
-                                        $comments .= PHP_EOL;
+                                    if ($body['Comments']) {
+                                        $body['Comments'] .= PHP_EOL;
                                     }
-                                    $comments .= _t(
+                                    $body['Comments'] .= _t(
                                         'UnleashedAPI.addEmailToCustomerComment',
                                         'Add email to Customer: {email_address}',
                                         '',
@@ -176,9 +414,9 @@ class Order extends DataExtension
                                     );
                                 } else {
                                     // The Customer Code already exists, we have a unique email address, but
-                                    // the delivery address is new
-                                    // We need to create a new Customer with a unique Customer Code
-                                    $customer_code_and_name .= rand(10000000, 99999999);
+                                    // the delivery address is new.
+                                    // Therefore, we need to create a new Customer with a unique Customer Code.
+                                    $body['CustomerCode'] .= rand(10000000, 99999999);
                                 }
                             }
                         }
@@ -188,68 +426,36 @@ class Order extends DataExtension
 
             if (!$member->Guid) {
                 // The Customer Code does not exists in Unleashed and the email address is unique
-                // Create in Unleashed
+                // therefore create in Unleashed
                 $member->Guid = (string) Utils::createGuid();
-                $address_name_postal_new_customer = $this->getAddressName($billing_address);
-                $address_name_physical_new_customer = $this->getAddressName($shipping_address);
-
-                $body = [
-                    'Addresses' => [
-                        [
-                            'AddressName' => $address_name_postal_new_customer,
-                            'AddressType' => 'Postal',
-                            'City' => $billing_address->City,
-                            'Country' => $countries[$billing_address->Country],
-                            'PostalCode' => $billing_address->PostalCode,
-                            'Region' => $billing_address->State,
-                            'StreetAddress' => $billing_address->Address,
-                            'StreetAddress2' => $billing_address->AddressLine2
-                        ],
-                        [
-                            'AddressName' => $address_name_physical_new_customer,
-                            'AddressType' => 'Physical',
-                            'City' => $shipping_address->City,
-                            'Country' => $countries[$shipping_address->Country],
-                            'PostalCode' => $shipping_address->PostalCode,
-                            'Region' => $shipping_address->State,
-                            'StreetAddress' => $shipping_address->Address,
-                            'StreetAddress2' => $shipping_address->AddressLine2
-                        ]
-                    ],
-                    'Currency' =>[
-                        'CurrencyCode' => $order->Currency()
-                    ],
-                    'CustomerCode' => $customer_code_and_name,
-                    'CustomerName' => $customer_code_and_name,
+                $body_member = [
+                    'Addresses' => $body['Addresses'],
                     'ContactFirstName' => $member->FirstName,
                     'ContactLastName' => $member->Surname,
+                    'CreatedBy' => $body['CreatedBy'],
+                    'Currency' => $body['Currency'],
+                    'CustomerCode' => $body['CustomerCode'],
+                    'CustomerName' => $body['CustomerName'],
+                    'CustomerType' => $body['CustomerType'],
                     'Email' => $member->Email,
                     'Guid' => $member->Guid,
-                    'PaymentTerm' => $defaults->payment_term,
-                    'PrintPackingSlipInsteadOfInvoice' => true,
-                    'SellPriceTier' => $sell_price_tier
+                    'PaymentTerm' => $body['PaymentTerm'],
+                    'PhoneNumber' => $body['PhoneNumber'],
+                    'PrintPackingSlipInsteadOfInvoice' => $body['PrintPackingSlipInsteadOfInvoice'],
+                    'SellPriceTier' => $body['SellPriceTier'],
+                    'SourceId' => $body['SourceId'],
+                    'Taxable' => $body['Taxable'],
+                    'TaxCode' => $body['Tax']['TaxCode']
                 ];
 
-                if ($taxable) {
-                    $body['Taxable'] = $taxable;
-                }
-
-                if ($defaults->created_by) {
-                    $body['CreatedBy'] = $defaults->created_by;
-                }
-
-                if ($defaults->customer_type) {
-                    $body['CustomerType'] = $defaults->customer_type;
-                }
-
-                if ($billing_address->Phone) {  // add phone number if available
-                    $body['PhoneNumber'] = $billing_address->Phone;
+                foreach ($body_member['Addresses'] as $index => $value) {
+                    $body_member['Addresses'][$index]['IsDefault'] = true;
                 }
 
                 $response = UnleashedAPI::sendCall(
                     'POST',
                     'https://api.unleashedsoftware.com/Customers/' . $member->Guid,
-                    ['json' => $body ]
+                    ['json' => $body_member ]
                 );
 
                 if ($response->getReasonPhrase() == 'Created' && $order->Member()->exists()) {
@@ -257,130 +463,10 @@ class Order extends DataExtension
                 }
             }
 
-
             // Prepare Sales Order data
-            if ($member->Guid) {  // Skip if previous calls to Customer have failed and the Guid has not been set
-                // Dates
-                $date_placed = new DateTime($order->Placed);
-                $date_paid = new DateTime($order->Paid);
-                $date_required = new DateTime($order->Paid);
-                if ($defaults->expected_days_to_deliver) {
-                    $date_required->modify('+' . $defaults->expected_days_to_deliver . 'day');
-                }
-
-                // Sales Order Lines
-                foreach ($order->Items()->getIterator() as $item) {
-                    // Definitions
-                    $product = $item->Product();
-                    $line_number += 1;
-
-                    $sales_order_line = [
-                        'DiscountRate' => 0,
-                        'Guid' => $item->Guid,
-                        'LineNumber' => $line_number,
-                        'LineType' => null,
-                        'LineTotal' => round(floatval($item->Total()), $config->rounding_precision),
-                        'OrderQuantity' => (int) $item->Quantity,
-                        'Product' => [
-                            'Guid' => $product->Guid
-                        ],
-                        'UnitPrice' => round(floatval($product->getPrice()), $config->rounding_precision)
-                    ];
-                    if ($tax_class_name) {
-                        $tax_calculator = new $tax_class_name;
-                        $sales_order_line['LineTax'] = round(
-                            $tax_calculator->value($item->Total()),
-                            $config->rounding_precision
-                        );
-                        $sales_order_line['LineTaxCode'] = $tax_code;
-                    }
-                    $sales_order_lines[] = $sales_order_line;
-                }
-
-                // Add Modifiers that have an associated product_code
-                foreach ($modifiers->sort('Sort')->getIterator() as $modifier) {
-                    $line_total = round(floatval($modifier->Amount), $config->rounding_precision);
-
-                    if ($modifier::config()->product_code &&
-                        $modifier->Type !== 'Ignored' &&
-                        !empty($line_total)
-                    ) {
-                        $line_number += 1;
-                        $sales_order_line = [
-                            'DiscountRate' => 0,
-                            'Guid' => $modifier->Guid,
-                            'LineNumber' => $line_number,
-                            'LineTotal' => $line_total,
-                            'LineType' => null,
-                            'OrderQuantity' => 1,
-                            'Product' => [
-                                'ProductCode' => $modifier::config()->product_code,
-                            ],
-                            'UnitPrice' => round(floatval($modifier->Amount), $config->rounding_precision)
-                        ];
-                        if ($tax_class_name) {
-                            $tax_calculator = new $tax_class_name;
-                            $sales_order_line['LineTax'] = round(
-                                $tax_calculator->value($modifier->Amount),
-                                $config->rounding_precision
-                            );
-                            $sales_order_line['LineTaxCode'] = $tax_code;
-                        }
-                        $sales_order_lines[] = $sales_order_line;
-                    }
-                }
-
-                // Shipping Module
-                if (class_exists('SilverShop\Shipping\Model\ShippingMethod')) {
-                    $name = $order->ShippingMethod()->Name;
-                    if ($name) {
-                        $shipping_method = $name;
-                    }
-                }
-
-                $body = [
-                    'Comments' => $comments,
-                    'Currency' =>[
-                        'CurrencyCode' => $order->Currency()
-                    ],
-                    'Customer' => [
-                        'Guid' => $member->Guid
-                    ],
-                    'DeliveryCity' => $shipping_address->City,
-                    'DeliveryCountry' => $countries[$shipping_address->Country],
-                    'DeliveryPostCode' => $shipping_address->PostalCode,
-                    'DeliveryRegion' => $shipping_address->State,
-                    'DeliveryStreetAddress' => $shipping_address->Address,
-                    'DeliveryStreetAddress2' => $shipping_address->AddressLine2,
-                    'DiscountRate' => 0,
-                    'Guid' => $order->Guid,
-                    'OrderDate' => $date_placed->format('Y-m-d\TH:i:s'),
-                    'OrderNumber' => $order->Reference,
-                    'OrderStatus' => 'Parked',
-                    'PaymentDueDate' => $date_paid->format('Y-m-d\TH:i:s'),
-                    'ReceivedDate' => $date_placed->format('Y-m-d\TH:i:s'),
-                    'RequiredDate' => $date_required->format('Y-m-d\TH:i:s'),
-                    'SalesOrderLines' => $sales_order_lines,
-                    'SubTotal' => round(floatval($subtotal), $config->rounding_precision),
-                    'Tax' => [
-                        'TaxCode' => $tax_code
-                    ],
-                    'TaxTotal' => $tax_total,
-                    'Total' => round(floatval($order->Total()), $config->rounding_precision)
-                ];
-
-                if ($shipping_method) {
-                    $body['DeliveryMethod'] = $shipping_method;
-                    $body['DeliveryName'] = $shipping_method;
-                }
-
-                if ($defaults->sales_order_group) {
-                    $body['SalesOrderGroup'] = $defaults->sales_order_group;
-                }
-
-                if ($defaults->source_id) {
-                    $body['SourceId'] = $defaults->source_id;
-                }
+            // Skip if previous calls to Customer have failed and the Guid has not been set
+            if ($member->Guid) {
+                $body['Customer']['Guid'] = $member->Guid;
 
                 $this->owner->extend('updateUnleashedSalesOrder', $body);
 

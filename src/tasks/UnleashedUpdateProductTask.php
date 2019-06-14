@@ -39,7 +39,6 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
     public function run($request)
     {
         // Definitions
-        $config = $this->config();
         $silvershopInternalItemIDMustBeUnique = Product::get()->column('InternalItemID');
         $silvershopTitleMustBeUnique = Product::get()->column('Title');
         $consumer = Consumer::get()->find('Title', 'ProductUpdate');
@@ -94,7 +93,6 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
                     $apidata = array_merge($apidata, $apidata_array['Items']);
                 }
             }
-            var_dump($apidata);
         }
 
         $this->log('<h2>Preliminary Checks</h2>');
@@ -127,7 +125,7 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
 
         // Check for duplicates in apidata before proceeding further
         $duplicates = Utilities::getDuplicates(array_column($apidata, 'ProductCode'));
-        if ($duplicates) {
+        if (!empty($duplicates)) {
             echo "<h2>Duplicate check of ProductCode within Unleashed</h2>";
             foreach ($duplicates as $duplicate) {
                 $this->log(htmlspecialchars($duplicate, ENT_QUOTES, 'utf-8'));
@@ -146,7 +144,7 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
         $loader = ProductBulkLoader::create('SilverShop\Page\Product');
         $loader->transforms = [
             'Parent' => [
-                'callback' => function ($value, $placeholder) {
+                'callback' => function ($value) {
                     $obj = ProductCategory::get()->find('Guid', $value['Guid']);
                     if ($obj) {
                         return $obj;
@@ -156,7 +154,7 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
                 }
             ],
             'BasePrice' => [
-                'callback' => function ($value, $placeholder) {
+                'callback' => function ($value) {
                     return (float)$value;
                 }
             ],

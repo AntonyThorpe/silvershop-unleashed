@@ -35,9 +35,6 @@ abstract class UnleashedUpdateProductCategoryTask extends UnleashedBuildTask
     public function run($request)
     {
         // Definitions
-        $config = $this->config();
-        $apidata_array;
-        $apidata;
         $silvershopDataListMustBeUnique = ProductCategory::get()->column('Title');
 
         // Get Product Categories from Unleashed
@@ -55,7 +52,7 @@ abstract class UnleashedUpdateProductCategoryTask extends UnleashedBuildTask
         $this->log('<h2>Preliminary Checks</h2>');
         // Check for duplicates in DataList before proceeding further
         $duplicates = Utilities::getDuplicates($silvershopDataListMustBeUnique);
-        if ($duplicates) {
+        if (!empty($duplicates)) {
             echo "<h2>Duplicate check of Product Categories within Silvershop</h2>";
             foreach ($duplicates as $duplicate) {
                 $this->log($duplicate);
@@ -69,7 +66,7 @@ abstract class UnleashedUpdateProductCategoryTask extends UnleashedBuildTask
 
         // Check for duplicates in apidata before proceeding further
         $duplicates = Utilities::getDuplicates(array_column($apidata, 'GroupName'));
-        if ($duplicates) {
+        if (!empty($duplicates)) {
             echo "<h2>Duplicate check of Product Categories within Unleashed</h2>";
             foreach ($duplicates as $duplicate) {
                 $this->log(htmlspecialchars($duplicate, ENT_QUOTES, 'utf-8'));

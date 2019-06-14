@@ -2,6 +2,10 @@ inherit: true
 
 build:
   nodes:
+    coverage:
+      tests:
+        before:
+          - command: 'composer require --prefer-dist --prefer-lowest --no-update silverstripe/recipe-cms:^4@dev league/omnipay:^3 silverstripe/silverstripe-omnipay:3.x-dev'
     analysis:
       tests:
         override: [php-scrutinizer-run]

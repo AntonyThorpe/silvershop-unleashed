@@ -14,7 +14,6 @@ class ProductBulkLoader extends BulkLoader
 
     /**
      * Specify a colsure to be run on every imported record.
-     * @var Closure
      */
     public $recordCallback = 'setOtherProperties';
 

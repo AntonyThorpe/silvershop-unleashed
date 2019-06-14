@@ -7,6 +7,7 @@ use GuzzleHttp\Exception\RequestException;
 use SilverStripe\Dev\BuildTask;
 use SilverStripe\Control\Controller;
 use SilverStripe\ORM\DatabaseAdmin;
+use SilverStripe\ORM\DB;
 use SilverStripe\Control\Director;
 
 /**
@@ -20,13 +21,13 @@ abstract class UnleashedBuildTask extends BuildTask
     protected $email_subject = "API Unleashed Software";
 
     /**
-     * @var booleen
+     * @var boolean
      */
     protected $preview = false;
 
     /**
      * echo to screen for Build Reports
-     * @param  string $msg the message to be printed
+     * @param  string $text the message to be printed
      */
     protected function log($text)
     {

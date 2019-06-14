@@ -10,6 +10,7 @@ use GuzzleHttp\RequestOptions;
 use SilverStripe\Core\Config\Config_ForClass;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
+use Monolog\Formatter\LineFormatter;
 
 /**
  * Settings to incorporate Unleashed API into a Guzzle Http Client
@@ -31,7 +32,7 @@ class UnleashedAPI extends Client
      * Log calls if failed
      * @var boolean
      */
-    public static $logfailedcalls = true;
+    public static $logfailedcalls = false;
 
     /**
      * Guzzle debug setting
@@ -80,8 +81,16 @@ class UnleashedAPI extends Client
             },
             function (RequestException $reason) {
                 if (self::config()->logfailedcalls) {
+                    $line_formatter = new LineFormatter(
+                        null, // Format of message in log, default [%datetime%] %channel%.%level_name%: %message% %context% %extra%\n
+                        null, // Datetime format
+                        true, // allowInlineLineBreaks option, default false
+                        true  // discard empty Square brackets in the end, default false
+                    );
                     $logger = new Logger("unleashed-log");
-                    $logger->pushHandler(new StreamHandler('./z_silverstripe-unleashed.log', Logger::INFO));
+                    $stream_handler = new StreamHandler('./z_silverstripe-unleashed.log', Logger::INFO);
+                    $stream_handler->setFormatter($line_formatter);
+                    $logger->pushHandler($stream_handler);
                     $logger->info($reason->getMessage());
                     if (!empty($reason->getResponse())) {
                         $logger->info(print_r($reason->getResponse()->getBody()->getContents(), true));

@@ -7,4 +7,3 @@
 /.travis.yml export-ignore
 /changelog.md export-ignore
 /contributing.md export-ignore
-/LICENSE
