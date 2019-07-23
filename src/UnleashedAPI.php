@@ -32,19 +32,19 @@ class UnleashedAPI extends Client
      * Log calls if failed
      * @var boolean
      */
-    public static $logfailedcalls = false;
+    private static $logfailedcalls = false;
 
     /**
      * Guzzle debug setting
      * @var boolean
      */
-    public static $debug = false;
+    private static $debug = false;
 
     /**
      * id from Unleashed
      * @var string
      */
-    public static $id;
+    private static $id;
 
     /**
      * key from Unleashed
