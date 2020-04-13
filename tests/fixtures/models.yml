@@ -57,6 +57,16 @@ SilverShop\Page\Product:
     Weight: 0.3
     Stock: 1000 #You need stock levels if you have included the stock module, else the test will fail.
     Guid: G16
+  filter:
+    InternalItemID: FILTER
+    Title: Jumbo Cartridge
+    BasePrice: 46.96
+    URLSegment: filter
+    Parent: =>SilverShop\Page\ProductCategory.products
+    AllowPurchase: 1
+    Weight: 0.5
+    Stock: 5
+    Guid: G17
 
 SilverShop\Model\Order:
   paid1:

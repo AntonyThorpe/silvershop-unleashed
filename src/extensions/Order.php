@@ -262,7 +262,27 @@ class Order extends DataExtension
     }
 
     /**
-     * Calculate the SubTotal
+     * Set the Tax Codes
+     * @param array $body
+     * @param object $order
+     * @param string $tax_modifier_class_name
+     * @return array $body
+     */
+    public function setBodyTaxCode($body, $order, $tax_modifier_class_name)
+    {
+        if ($tax_modifier_class_name) {
+            $tax_modifier = $order->getModifier($tax_modifier_class_name);
+            if (!empty($tax_modifier)) {
+                $body['Taxable'] = true;
+                $body['Tax']['TaxCode'] = $tax_modifier::config()->tax_code;
+            }
+        }
+        return $body;
+    }
+
+
+    /**
+     * Calculate the SubTotal and TaxTotal
      * @param array $body
      * @param object $order
      * @param string $tax_modifier_class_name
@@ -271,16 +291,38 @@ class Order extends DataExtension
      */
     public function setBodySubTotalAndTax($body, $order, $tax_modifier_class_name, $rounding_precision)
     {
-        $subtotal = round(floatval($order->Total()), $rounding_precision);  // Subtotal = Total less Tax Modifier
-        $tax_modifier = $order->getModifier($tax_modifier_class_name);
+        if ($tax_modifier_class_name) {
+            $tax_modifier = $order->getModifier($tax_modifier_class_name);
 
-        if (!empty($tax_modifier)) {
-            $subtotal = bcsub($subtotal, $tax_modifier->Amount, $rounding_precision);
-            $body['Taxable'] = true;
-            $body['Tax']['TaxCode'] = $tax_modifier::config()->tax_code;
-            $body['TaxTotal'] = round(floatval($tax_modifier->Amount), $rounding_precision);
+            if (!empty($tax_modifier)) {
+                $sub_total = 0;
+                $tax_total = 0;
+                foreach ($body['SalesOrderLines'] as $item) {
+                    $sub_total = bcadd(
+                        $sub_total,
+                        $item['LineTotal'],
+                        $rounding_precision
+                    );
+                    $tax_total = bcadd(
+                        $tax_total,
+                        $item['LineTax'],
+                        $rounding_precision
+                    );
+                }
+                $body['TaxTotal'] = $tax_total;
+                $body['SubTotal'] = $sub_total;
+
+                $rounding = round(floatval($order->Total() - $tax_total - $sub_total), $rounding_precision);
+                // if there is some rounding, adjust the Tax on the first sales order line
+                // and adjust the Tax Total by the same amount
+                if ($rounding) {
+                    $body['SalesOrderLines'][0]['LineTax'] = round($body['SalesOrderLines'][0]['LineTax'] + $rounding, $rounding_precision);
+                    $body['TaxTotal'] = round($body['TaxTotal'] + $rounding, $rounding_precision);
+                }
+            }
+        } else {
+            $body['SubTotal'] = round(floatval($order->Total()), $rounding_precision);
         }
-        $body['SubTotal'] = $subtotal;
         return $body;
     }
 
@@ -326,9 +368,10 @@ class Order extends DataExtension
             $body = $this->setBodyAddress($body, $order, 'Physical');
             $body = $this->setBodyCurrencyCode($body, $order);
             $body = $this->setBodyCustomerCodeAndName($body, $order);
-            $body = $this->setBodySubTotalAndTax($body, $order, $defaults->tax_modifier_class_name, $config->rounding_precision);
             $body = $this->setBodyDeliveryMethodAndDeliveryName($body, $order, $defaults->shipping_modifier_class_name);
+            $body = $this->setBodyTaxCode($body, $order, $defaults->tax_modifier_class_name);
             $body = $this->setBodySalesOrderLines($body, $order, $defaults->tax_modifier_class_name, $config->rounding_precision);
+            $body = $this->setBodySubTotalAndTax($body, $order, $defaults->tax_modifier_class_name, $config->rounding_precision);
 
             // Add optional defaults
             if ($defaults->created_by) {

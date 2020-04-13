@@ -35,14 +35,15 @@ class UnleashedOrderTest extends SapphireTest
         parent::setUp();
         ShoppingCart::singleton()->clear();
         ShopTest::setConfiguration(); //reset config
+        $this->logInWithPermission('ADMIN');
         Config::modify()
+            ->set(Simple::class, 'default_charge', 8.95)
+            ->set(Simple::class, 'product_code', 'Freight')
             ->set(FlatTax::class, 'rate', 0.15)
             ->set(FlatTax::class, 'exclusive', true)
             ->set(FlatTax::class, 'name', 'GST')
             ->set(FlatTax::class, 'tax_code', 'OUTPUT2')
-            ->set(Simple::class, 'default_charge', 8.95)
-            ->set(Simple::class, 'product_code', 'Freight')
-            ->merge(Order::class, 'modifiers', [FlatTax::class, Simple::class]);
+            ->merge(Order::class, 'modifiers', [Simple::class, FlatTax::class]);
     }
 
     protected $order_status_map = [
@@ -208,25 +209,32 @@ class UnleashedOrderTest extends SapphireTest
 
     public function testSetBodySalesOrderLinesWithModifiers()
     {
-        $body = [
-            'Tax' => [
-                'TaxCode' => 'OUTPUT2'
-            ]
-        ];
-        $order = Order::create();
         $urntap = $this->objFromFixture(Product::class, 'urntap');
         $urntap->publishSingle();
-        $order->Items()->add($urntap->createItem(1));
-        $order->write();
-        OrderProcessor::create($order)->placeOrder();
-        $total = $order->calculate();
+        $cart = ShoppingCart::singleton();
+        $cart->clear();
+        $cart->add($urntap);
+        $order = $cart->current();
+        $order->calculate();
 
-        $this->assertEquals(1, $order->Items()->count());
-        $this->assertEquals(2, $order->Modifiers()->count()); // Shipping & GST
-        $this->assertEquals(84.45, $total, 'Total equals $84.45');
-        $body = $order->setBodySalesOrderLines($body, $order, 'SilverShop\Model\Modifiers\Tax\FlatTax', 2);
+        $this->assertEquals(
+            2,
+            $order->Modifiers()->count(),
+            'Shipping & Tax Modifiers in order'
+        );
+        $body = $order->setBodySalesOrderLines(
+            [
+                'Tax' => [
+                    'TaxCode' => 'OUTPUT2'
+                ]
+            ],
+            $order,
+            'SilverShop\Model\Modifiers\Tax\FlatTax',
+            2
+        );
         $freight_modifier = $body['SalesOrderLines'][1];
         $result = $freight_modifier['DiscountRate'] . '|' . $freight_modifier['LineNumber'] . '|' . $freight_modifier['LineTotal'] . '|' . $freight_modifier['LineType'] . '|' . $freight_modifier['OrderQuantity'] . '|' . $freight_modifier['UnitPrice'] . '|' . $freight_modifier['LineTax'] . '|' . $freight_modifier['LineTaxCode'];
+
         $this->assertSame(
             $result,
             '0|2|8.95||1|8.95|1.34|OUTPUT2',
@@ -241,26 +249,97 @@ class UnleashedOrderTest extends SapphireTest
 
     public function testSetBodySubTotalAndTax()
     {
-        $order = Order::create();
         $urntap = $this->objFromFixture(Product::class, 'urntap');
         $urntap->publishSingle();
-        $order->Items()->add($urntap->createItem(1));
-        $order->write();
-        OrderProcessor::create($order)->placeOrder();
+        $cart = ShoppingCart::singleton();
+        $cart->clear();
+        $cart->add($urntap);
+        $order = $cart->current();
+        $order->calculate();
+
+        $body = $order->setBodyTaxCode(
+            [],
+            $order,
+            'SilverShop\Model\Modifiers\Tax\FlatTax'
+        );
+        $body = $order->setBodySalesOrderLines(
+            $body,
+            $order,
+            'SilverShop\Model\Modifiers\Tax\FlatTax',
+            2
+        );
+        $body = $order->setBodySubTotalAndTax(
+            $body,
+            $order,
+            'SilverShop\Model\Modifiers\Tax\FlatTax',
+            2
+        );
+
+        $this->assertTrue(
+            $body['Taxable'],
+            'Taxable is set to true'
+        );
+        $this->assertEquals(
+            $body['TaxTotal'],
+            11.19,
+            'TaxTotal is set to $11.19 ((65.65 + 8.95) * .15) in $body'
+        );
+        $this->assertEquals(
+            $body['SubTotal'],
+            74.60,
+            'SubTotal is set to $74.60 (65.65 + 8.95) in $body'
+        );
+    }
+
+    public function testTaxRounding()
+    {
+        $filter = $this->objFromFixture(Product::class, 'filter');
+        $filter->publishSingle();
+        $tax_total = 0;
+        $tax_modifier_class_name = 'SilverShop\Model\Modifiers\Tax\FlatTax';
+        $cart = ShoppingCart::singleton();
+        $cart->clear();
+        $cart->add($filter);
+        $order = $cart->current();
         $total = $order->calculate();
 
-        $body = $order->setBodySubTotalAndTax([], $order, 'SilverShop\Model\Modifiers\Tax\FlatTax', 2);
-        $result = $body['Taxable'] . '|' . $body['TaxTotal'] . '|' . $body['SubTotal'];
-
-        $this->assertSame(
-            $result,
-            '1|9.85|74.60',
-            'Taxable, TaxTotal & SubTotal added to $body'
+        $body = $order->setBodyTaxCode(
+            [],
+            $order,
+            $tax_modifier_class_name
         );
-        $this->assertSame(
-            $body['Tax']['TaxCode'],
-            'OUTPUT2',
-            'TaxCode set in $body'
+        $body = $order->setBodySalesOrderLines(
+            $body,
+            $order,
+            $tax_modifier_class_name,
+            2
+        );
+        $body = $order->setBodySubTotalAndTax(
+            $body,
+            $order,
+            $tax_modifier_class_name,
+            2
+        );
+
+        $this->assertEquals(
+            $body['TaxTotal'],
+            '8.39',
+            'TaxTotal is set to $8.39 ((46.96 + 8.95) * .15) in $body'
+        );
+        $this->assertEquals(
+            $body['SubTotal'],
+            '55.91',
+            'SubTotal is set to $55.91 (46.96 + 8.95) in $body'
+        );
+        $this->assertEquals(
+            round($total, 2),
+            64.3,
+            'Total equals $64.30'
+        );
+        $this->assertEquals(
+            round(floatval($body['TaxTotal'] + $body['SubTotal']), 2),
+            64.3,
+            'TaxTotal plus SubTotal equals $64.30'
         );
     }
 
