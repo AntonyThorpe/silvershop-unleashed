@@ -295,7 +295,6 @@ class UnleashedOrderTest extends SapphireTest
     {
         $filter = $this->objFromFixture(Product::class, 'filter');
         $filter->publishSingle();
-        $tax_total = 0;
         $tax_modifier_class_name = 'SilverShop\Model\Modifiers\Tax\FlatTax';
         $cart = ShoppingCart::singleton();
         $cart->clear();
@@ -320,7 +319,6 @@ class UnleashedOrderTest extends SapphireTest
             $tax_modifier_class_name,
             2
         );
-
         $this->assertEquals(
             $body['TaxTotal'],
             '8.39',
@@ -342,6 +340,68 @@ class UnleashedOrderTest extends SapphireTest
             'TaxTotal plus SubTotal equals $64.30'
         );
     }
+
+    public function testTaxRounding2()
+    {
+        ShopTest::setConfiguration(); //reset config
+        $this->logInWithPermission('ADMIN');
+        Config::modify()
+            ->set(Simple::class, 'default_charge', 15.50)
+            ->set(Simple::class, 'product_code', 'Freight')
+            ->set(FlatTax::class, 'rate', 0.15)
+            ->set(FlatTax::class, 'exclusive', true)
+            ->set(FlatTax::class, 'name', 'GST')
+            ->set(FlatTax::class, 'tax_code', 'OUTPUT2')
+            ->merge(Order::class, 'modifiers', [Simple::class, FlatTax::class]);
+        $boiler = $this->objFromFixture(Product::class, 'boiler');
+        $boiler->publishSingle();
+        $tax_modifier_class_name = 'SilverShop\Model\Modifiers\Tax\FlatTax';
+        $cart = ShoppingCart::singleton();
+        $cart->clear();
+        $cart->add($boiler);
+        $order = $cart->current();
+        $total = $order->calculate();
+
+        $body = $order->setBodyTaxCode(
+            [],
+            $order,
+            $tax_modifier_class_name
+        );
+        $body = $order->setBodySalesOrderLines(
+            $body,
+            $order,
+            $tax_modifier_class_name,
+            2
+        );
+        $body = $order->setBodySubTotalAndTax(
+            $body,
+            $order,
+            $tax_modifier_class_name,
+            2
+        );
+
+        $this->assertEquals(
+            $body['TaxTotal'],
+            '139.15',
+            'TaxTotal is set to $139.15 ((912.17 + 15.50) * .15) in $body'
+        );
+        $this->assertEquals(
+            $body['SubTotal'],
+            '927.67',
+            'SubTotal is set to $927.67 (912.17 + 15.50) in $body'
+        );
+        $this->assertEquals(
+            round($total, 2),
+            1066.82,
+            'Total equals $1,066.82'
+        );
+        $this->assertEquals(
+            round(floatval($body['TaxTotal'] + $body['SubTotal']), 2),
+            1066.82,
+            'TaxTotal plus SubTotal equals $1,066.82'
+        );
+    }
+
 
     public function testSetBodyDeliveryMethodAndDeliveryName()
     {

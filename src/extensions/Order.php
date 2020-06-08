@@ -315,7 +315,7 @@ class Order extends DataExtension
                 $rounding = round(floatval($order->Total() - $tax_total - $sub_total), $rounding_precision);
                 // if there is some rounding, adjust the Tax on the first sales order line
                 // and adjust the Tax Total by the same amount
-                if ($rounding) {
+                if (!empty($rounding)) {
                     $body['SalesOrderLines'][0]['LineTax'] = round($body['SalesOrderLines'][0]['LineTax'] + $rounding, $rounding_precision);
                     $body['TaxTotal'] = round($body['TaxTotal'] + $rounding, $rounding_precision);
                 }

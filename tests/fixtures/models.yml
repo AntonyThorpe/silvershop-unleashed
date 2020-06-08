@@ -67,6 +67,16 @@ SilverShop\Page\Product:
     Weight: 0.5
     Stock: 5
     Guid: G17
+  boiler:
+    InternalItemID: BOILER
+    Title: Boil Unit
+    BasePrice: 912.17
+    URLSegment: boiler
+    Parent: =>SilverShop\Page\ProductCategory.products
+    AllowPurchase: 1
+    Weight: 0.5
+    Stock: 5
+    Guid: G18
 
 SilverShop\Model\Order:
   paid1:
