@@ -2,20 +2,20 @@
 
 namespace AntonyThorpe\SilverShopUnleashed\Tests;
 
-use SilverStripe\Dev\SapphireTest;
-use SilverStripe\Core\Config\Config;
-use SilverShop\Page\Product;
-use SilverShop\Model\Product\OrderItem;
-use SilverShop\Model\Modifiers\OrderModifier;
-use SilverShop\Model\Order;
-use SilverShop\Checkout\OrderProcessor;
+use AntonyThorpe\SilverShopUnleashed\BulkLoader\OrderBulkLoader;
+use AntonyThorpe\SilverShopUnleashed\Defaults;
 use SilverShop\Cart\ShoppingCart;
-use SilverShop\Tests\ShopTest;
+use SilverShop\Checkout\OrderProcessor;
+use SilverShop\Model\Modifiers\OrderModifier;
 use SilverShop\Model\Modifiers\Shipping\Simple;
 use SilverShop\Model\Modifiers\Tax\FlatTax;
+use SilverShop\Model\Order;
+use SilverShop\Model\Product\OrderItem;
+use SilverShop\Page\Product;
 use SilverShop\Shipping\Model\DistanceShippingMethod;
-use AntonyThorpe\SilverShopUnleashed\OrderBulkLoader;
-use AntonyThorpe\SilverShopUnleashed\Defaults;
+use SilverShop\Tests\ShopTest;
+use SilverStripe\Core\Config\Config;
+use SilverStripe\Dev\SapphireTest;
 
 class UnleashedOrderTest extends SapphireTest
 {

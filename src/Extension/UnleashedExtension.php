@@ -1,6 +1,6 @@
 <?php
 
-namespace AntonyThorpe\SilvershopUnleashed;
+namespace AntonyThorpe\SilvershopUnleashed\Extension;
 
 use SilverStripe\Forms\FieldList;
 use SilverStripe\ORM\DataExtension;

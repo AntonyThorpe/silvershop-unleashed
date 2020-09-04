@@ -8,18 +8,24 @@ The default Build Tasks are abstract classes because it is assumed that most dev
 This module relies on [Consumer](https://github.com/antonythorpe/consumer), a Silverstripe BulkLoader focused on consuming data from external APIs.
 
 ### Getting Started
-To sync Products, subclass `UnleashedUpdateProductTask` and if needing to change the business rules copy and paste the `run` function to your new class and change as required.
+To sync Products, subclass `AntonyThorpe\SilverShopUnleashed\Task\UnleashedUpdateProductTask` and if needing to change the business rules copy and paste the `run` function to your new class and change as required.
 
-Ditto for `UnleashedUpdateProductCategoryTask` and `UnleashedCompareProductCategories` for the Product Categories, and `UnleashedUpdateOrderTask` for Orders.
+Ditto for `AntonyThorpe\SilverShopUnleashed\Task\UnleashedUpdateProductCategoryTask` and `AntonyThorpe\SilverShopUnleashed\Task\UnleashedCompareProductCategories` for the Product Categories, and `AntonyThorpe\SilverShopUnleashed\Task\UnleashedUpdateOrderTask` for Orders.
 
 Configure the subclass' `title`, `description`, `email_subject` and `preview` settings in your subclass.  Set preview to `true` for a dry run without changing the dataobject (the report is still generated).
 
 
-Note: the Product and Product Category Build Tasks only update the items that currently exist in SilverShop.  They do not automatically import new items.
+Note: the Product and Product Category Build Tasks only update the items that currently exist in SilverShop.  They do not automatically import new items (these need to be created manually).
 
 ## Pushing Orders to Unleashed as Sales Orders
 Prerequisites:
 * the Product Task has run and the Unleashed GUIDs are in the SilverShop_Product database table
-* the default group for new members must be the same as one of the Pricing Tiers in Unleashed (required for new customer setups)
+* the default group for new members must be the same as one of the Sell Price Tiers in Unleashed (required for new customer setups).  For example, from SilverShop:
+![](SilverShopGroup.png)
+
+    and, from Unleashed (tier 3 in this example):
+
+    ![](UnleashedSellPriceTier.png)
+
 
 Once [configured](installationconfiguration.md), any new paid order in Silvershop will create a new Customer in Unleashed (if they don't already exist) and create an associated Sales Order.

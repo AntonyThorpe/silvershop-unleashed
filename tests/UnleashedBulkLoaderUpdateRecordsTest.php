@@ -2,13 +2,13 @@
 
 namespace AntonyThorpe\SilverShopUnleashed\Tests;
 
-use SilverStripe\Dev\SapphireTest;
+use AntonyThorpe\SilverShopUnleashed\BulkLoader\ProductBulkLoader;
+use AntonyThorpe\SilverShopUnleashed\Defaults;
 use SilverShop\Model\Order;
-use SilverShop\Tests\ShopTest;
 use SilverShop\Page\Product;
 use SilverShop\Page\ProductCategory;
-use AntonyThorpe\SilverShopUnleashed\ProductBulkLoader;
-use AntonyThorpe\SilverShopUnleashed\Defaults;
+use SilverShop\Tests\ShopTest;
+use SilverStripe\Dev\SapphireTest;
 
 class UnleashedBulkLoaderUpdateRecordsTest extends SapphireTest
 {

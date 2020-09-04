@@ -1,14 +1,14 @@
 <?php
 
-namespace AntonyThorpe\SilverShopUnleashed;
+namespace AntonyThorpe\SilverShopUnleashed\Task;
 
-use Psr\Http\Message\ResponseInterface;
 use GuzzleHttp\Exception\RequestException;
-use SilverStripe\Dev\BuildTask;
+use Psr\Http\Message\ResponseInterface;
 use SilverStripe\Control\Controller;
+use SilverStripe\Control\Director;
+use SilverStripe\Dev\BuildTask;
 use SilverStripe\ORM\DatabaseAdmin;
 use SilverStripe\ORM\DB;
-use SilverStripe\Control\Director;
 
 /**
  * Base BuildTask for Unleashed Software

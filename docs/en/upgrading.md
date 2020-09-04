@@ -1,5 +1,19 @@
 # Upgrading
 
+## From 3 to 4
+New namespaces to comply with [PSR-4](https://www.php-fig.org/psr/psr-4/).  For subclassing the Tasks classes change:
+* `AntonyThorpe\SilverShopUnleashed\UnleashedBuildTask` to `AntonyThorpe\SilverShopUnleashed\Task\UnleashedBuildTask`
+* `AntonyThorpe\SilverShopUnleashed\UnleashedCompareProductCategoriesTask` to `AntonyThorpe\SilverShopUnleashed\Task\UnleashedCompareProductCategoriesTask`
+* `AntonyThorpe\SilverShopUnleashed\UnleashedUpdateOrderTask` to `AntonyThorpe\SilverShopUnleashed\Task\UnleashedUpdateOrderTask`
+* `AntonyThorpe\SilverShopUnleashed\UnleashedUpdateProductCategoryTask` to `AntonyThorpe\SilverShopUnleashed\Task\UnleashedUpdateProductCategoryTask`
+* `AntonyThorpe\SilverShopUnleashed\UnleashedUpdateProductCategoryTask` to `AntonyThorpe\SilverShopUnleashed\Task\UnleashedUpdateProductCategoryTask`
+* `AntonyThorpe\SilverShopUnleashed\UnleashedUpdateProductTask` to `AntonyThorpe\SilverShopUnleashed\Task\UnleashedUpdateProductTask`
+
+For the namespaces of the Bulk Loaders change:
+* `AntonyThorpe\SilverShopUnleashed\OrderBulkLoader` to `AntonyThorpe\SilverShopUnleashed\BulkLoader\OrderBulkLoader`
+* `AntonyThorpe\SilverShopUnleashed\ProductBulkLoader` to `AntonyThorpe\SilverShopUnleashed\BulkLoader\ProductBulkLoader`
+* `AntonyThorpe\SilverShopUnleashed\ProductCategoryBulkLoader` to `AntonyThorpe\SilverShopUnleashed\BulkLoader\ProductCategoryBulkLoader`
+
 ## From 2 to 3
 Adjustments to the below modifiers:
 ```yaml

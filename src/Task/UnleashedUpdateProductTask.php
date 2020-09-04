@@ -1,27 +1,26 @@
 <?php
 
-namespace AntonyThorpe\SilverShopUnleashed;
+namespace AntonyThorpe\SilverShopUnleashed\Task;
 
-use Psr\Http\Message\ResponseInterface;
-use GuzzleHttp\Exception\RequestException;
-use DateTime;
-use DateTimeZone;
-use SilverStripe\Core\Convert;
-use SilverStripe\Dev\Debug;
-use SilverStripe\Control\Email\Email;
-use SilverShop\Page\Product;
-use SilverShop\Page\ProductCategory;
-use SilverShop\Extension\ShopConfigExtension;
 use AntonyThorpe\Consumer\Consumer;
 use AntonyThorpe\Consumer\Utilities;
+use AntonyThorpe\SilverShopUnleashed\BulkLoader\ProductBulkLoader;
+use AntonyThorpe\SilverShopUnleashed\Task\UnleashedBuildTask;
+use AntonyThorpe\SilverShopUnleashed\UnleashedAPI;
+use DateTime;
+use DateTimeZone;
+use GuzzleHttp\Exception\RequestException;
+use Psr\Http\Message\ResponseInterface;
+use SilverShop\Extension\ShopConfigExtension;
+use SilverShop\Page\Product;
+use SilverShop\Page\ProductCategory;
+use SilverStripe\Control\Email\Email;
+use SilverStripe\Core\Convert;
+use SilverStripe\Dev\Debug;
 
 /**
  * Update Products with fresh data from Unleashed Inventory Management Software
- *
- * @package silvershop-unleashed
- * @subpackage tasks
  */
-
 abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
 {
     /**
@@ -44,7 +43,7 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
         $consumer = Consumer::get()->find('Title', 'ProductUpdate');
 
         // Get Products from Unleashed
-        if (!$consumer) {
+        if (!$consumer->Count()) {
             $response = UnleashedAPI::sendCall(
                 'GET',
                 'https://api.unleashedsoftware.com/Products'
@@ -146,7 +145,7 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
             'Parent' => [
                 'callback' => function ($value) {
                     $obj = ProductCategory::get()->find('Guid', $value['Guid']);
-                    if ($obj) {
+                    if ($obj->Count()) {
                         return $obj;
                     } else {
                         return ProductCategory::get()->find('Title', $value['GroupName']);
@@ -191,7 +190,7 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
         }
 
         if (!$this->preview && $apidata) {
-            if (!$consumer) {
+            if (!$consumer->Count()) {
                 $consumer = Consumer::create([
                     'Title' => 'ProductUpdate',
                     'ExternalLastEditedKey' => 'LastModifiedOn'

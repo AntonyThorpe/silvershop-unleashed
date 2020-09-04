@@ -1,18 +1,18 @@
 <?php
 
-namespace AntonyThorpe\SilverShopUnleashed;
+namespace AntonyThorpe\SilverShopUnleashed\Task;
 
-use Psr\Http\Message\ResponseInterface;
-use GuzzleHttp\Exception\RequestException;
-use SilverShop\Page\ProductCategory;
 use AntonyThorpe\Consumer\Utilities;
+use AntonyThorpe\SilverShopUnleashed\Task\UnleashedBuildTask;
+use AntonyThorpe\SilverShopUnleashed\UnleashedAPI;
+use GuzzleHttp\Exception\RequestException;
+use Psr\Http\Message\ResponseInterface;
+use SilverShop\Page\ProductCategory;
 
 /**
  * Compare Silvershop Categories against Product Categories in Unleashed Inventory Management Software
- *
- * Compares and provides a report
+ * and provides a report
  */
-
 abstract class UnleashedCompareProductCategoriesTask extends UnleashedBuildTask
 {
     /**
@@ -99,7 +99,7 @@ abstract class UnleashedCompareProductCategoriesTask extends UnleashedBuildTask
             echo "<h2>Product Categories in Unleashed but not the Silvershop</h2>";
             foreach ($unleashedCategories as $category) {
                 if (!in_array($category, $silvershopProductCategoryTitle)) {
-                    $this->log(htmlspecialchars($category), ENT_QUOTES, 'utf-8');
+                    $this->log(htmlspecialchars($category, ENT_QUOTES, 'utf-8'));
                 }
             }
             $this->log('<b>Done</b>');

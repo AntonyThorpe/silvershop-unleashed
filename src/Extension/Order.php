@@ -1,4 +1,6 @@
-<?php namespace AntonyThorpe\SilvershopUnleashed;
+<?php
+
+namespace AntonyThorpe\SilvershopUnleashed\Extension;
 
 use DateTime;
 use SilverStripe\Security\Member;

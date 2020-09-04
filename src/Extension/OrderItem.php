@@ -1,16 +1,12 @@
-<?php namespace AntonyThorpe\SilvershopUnleashed;
+<?php
 
-//use AntonyThorpe\SilverShopUnleashed\Utils;
+namespace AntonyThorpe\SilvershopUnleashed\Extension;
+
+use AntonyThorpe\SilverShopUnleashed\Utils;
 use SilverStripe\ORM\DataExtension;
 
-class OrderModifier extends DataExtension
+class OrderItem extends DataExtension
 {
-    /**
-     * Map OrderModifier
-     * @var string
-     */
-    private static $product_code;
-
     /**
      * Apply Guid if absent
      */

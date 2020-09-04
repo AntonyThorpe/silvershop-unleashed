@@ -1,6 +1,6 @@
 <?php
 
-namespace AntonyThorpe\SilverShopUnleashed;
+namespace AntonyThorpe\SilverShopUnleashed\BulkLoader;
 
 use AntonyThorpe\Consumer\BulkLoader;
 

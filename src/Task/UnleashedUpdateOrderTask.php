@@ -1,23 +1,22 @@
 <?php
 
-namespace AntonyThorpe\SilverShopUnleashed;
+namespace AntonyThorpe\SilverShopUnleashed\Task;
 
-use Psr\Http\Message\ResponseInterface;
-use GuzzleHttp\Exception\RequestException;
-use DateTime;
-use SilverStripe\Dev\Debug;
-use SilverStripe\Control\Email\Email;
-use SilverShop\Extension\ShopConfigExtension;
 use AntonyThorpe\Consumer\Consumer;
+use AntonyThorpe\SilverShopUnleashed\BulkLoader\OrderBulkLoader;
 use AntonyThorpe\SilvershopUnleashed\Defaults;
+use AntonyThorpe\SilverShopUnleashed\Task\UnleashedBuildTask;
+use AntonyThorpe\SilverShopUnleashed\UnleashedAPI;
+use DateTime;
+use GuzzleHttp\Exception\RequestException;
+use Psr\Http\Message\ResponseInterface;
+use SilverShop\Extension\ShopConfigExtension;
+use SilverStripe\Control\Email\Email;
+use SilverStripe\Dev\Debug;
 
 /**
  * Update Order with fresh data from Unleashed's Sales Orders
- *
- * @package silvershop-unleashed
- * @subpackage tasks
  */
-
 abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
 {
     /**
@@ -58,7 +57,7 @@ abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
         $query = [];
         $consumer = Consumer::get()->find('Title', 'OrderUpdate');  // to get modifiedSince
 
-        if ($consumer) {
+        if ($consumer->Count()) {
             $date = new DateTime($consumer->ExternalLastEdited);
             $query['modifiedSince'] = substr($date->format('Y-m-d\TH:i:s.u'), 0, 23);
         }
@@ -127,7 +126,7 @@ abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
 
             // Create/update Consumer
             if (!$this->preview && $apidata) {
-                if (!$consumer) {
+                if (!$consumer->Count()) {
                     $consumer = Consumer::create([
                         'Title' => 'OrderUpdate',
                         'ExternalLastEditedKey' => 'LastModifiedOn'

@@ -1,23 +1,22 @@
 <?php
 
-namespace AntonyThorpe\SilverShopUnleashed;
+namespace AntonyThorpe\SilverShopUnleashed\Task;
 
-use Psr\Http\Message\ResponseInterface;
+use AntonyThorpe\Consumer\Utilities;
+use AntonyThorpe\SilverShopUnleashed\BulkLoader\ProductCategoryBulkLoader;
+use AntonyThorpe\SilverShopUnleashed\Task\UnleashedBuildTask;
+use AntonyThorpe\SilverShopUnleashed\UnleashedAPI;
 use GuzzleHttp\Exception\RequestException;
-use SilverStripe\Dev\Debug;
-use SilverStripe\Core\Convert;
-use SilverStripe\Control\Email\Email;
+use Psr\Http\Message\ResponseInterface;
 use SilverShop\Extension\ShopConfigExtension;
 use SilverShop\Page\ProductCategory;
-use AntonyThorpe\Consumer\Utilities;
+use SilverStripe\Control\Email\Email;
+use SilverStripe\Core\Convert;
+use SilverStripe\Dev\Debug;
 
 /**
  * Update ProductCategory with fresh data from Unleashed Software Inventory system
- *
- * @package silvershop-unleashed
- * @subpackage tasks
  */
-
 abstract class UnleashedUpdateProductCategoryTask extends UnleashedBuildTask
 {
     /**
@@ -45,9 +44,7 @@ abstract class UnleashedUpdateProductCategoryTask extends UnleashedBuildTask
 
         // Extract data
         $apidata_array = json_decode($response->getBody()->getContents(), true);
-        if (isset($apidata_array)) {
-            $apidata = $apidata_array['Items'];
-        }
+        $apidata = $apidata_array['Items'];
 
         $this->log('<h2>Preliminary Checks</h2>');
         // Check for duplicates in DataList before proceeding further

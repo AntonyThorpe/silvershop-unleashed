@@ -2,10 +2,10 @@
 
 namespace AntonyThorpe\SilverShopUnleashed\Tests;
 
-use SilverStripe\Dev\SapphireTest;
+use AntonyThorpe\SilverShopUnleashed\Defaults;
 use SilverShop\Model\Order;
 use SilverShop\Tests\ShopTest;
-use AntonyThorpe\SilverShopUnleashed\Defaults;
+use SilverStripe\Dev\SapphireTest;
 
 class UnleashedCustomerTest extends SapphireTest
 {
