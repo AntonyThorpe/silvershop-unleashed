@@ -43,7 +43,7 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
         $consumer = Consumer::get()->find('Title', 'ProductUpdate');
 
         // Get Products from Unleashed
-        if (!$consumer->Count()) {
+        if (empty($consumer)) {
             $response = UnleashedAPI::sendCall(
                 'GET',
                 'https://api.unleashedsoftware.com/Products'
@@ -145,7 +145,7 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
             'Parent' => [
                 'callback' => function ($value) {
                     $obj = ProductCategory::get()->find('Guid', $value['Guid']);
-                    if ($obj->Count()) {
+                    if (!empty($obj)) {
                         return $obj;
                     } else {
                         return ProductCategory::get()->find('Title', $value['GroupName']);
@@ -190,14 +190,14 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
         }
 
         if (!$this->preview && $apidata) {
-            if (!$consumer->Count()) {
-                $consumer = Consumer::create([
+            if (empty($consumer)) {
+                $newItem = Consumer::create([
                     'Title' => 'ProductUpdate',
                     'ExternalLastEditedKey' => 'LastModifiedOn'
                 ]);
             }
-            $consumer->setMaxExternalLastEdited($apidata);
-            $consumer->write();
+            $newItem->setMaxExternalLastEdited($apidata);
+            $newItem->write();
         }
     }
 }

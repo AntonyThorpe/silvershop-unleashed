@@ -57,7 +57,7 @@ abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
         $query = [];
         $consumer = Consumer::get()->find('Title', 'OrderUpdate');  // to get modifiedSince
 
-        if ($consumer->Count()) {
+        if (!empty($consumer)) {
             $date = new DateTime($consumer->ExternalLastEdited);
             $query['modifiedSince'] = substr($date->format('Y-m-d\TH:i:s.u'), 0, 23);
         }
@@ -126,14 +126,14 @@ abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
 
             // Create/update Consumer
             if (!$this->preview && $apidata) {
-                if (!$consumer->Count()) {
-                    $consumer = Consumer::create([
+                if (empty($consumer)) {
+                    $newItem = Consumer::create([
                         'Title' => 'OrderUpdate',
                         'ExternalLastEditedKey' => 'LastModifiedOn'
                     ]);
                 }
-                $consumer->setMaxExternalLastEdited($apidata);
-                $consumer->write();
+                $newItem->setMaxExternalLastEdited($apidata);
+                $newItem->write();
             }
         } // end if response == 200
     }
