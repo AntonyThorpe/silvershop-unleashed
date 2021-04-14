@@ -18,7 +18,7 @@ For the namespaces of the Bulk Loaders change:
 Adjustments to the below modifiers:
 ```yaml
 SilverShop\Model\Modifiers\FlatTax:
-  tax_code: OUTPUT2
+  tax_code: OUTPUT2  # now uses `tax_code`
 AntonyThorpe\SilverShopUnleashed\Defaults:
   shipping_modifier_class_name: 'SilverShop\Model\Modifiers\Shipping\Simple'
   # Note: the `product_code` still needs to be set against the Shipping Modifier
