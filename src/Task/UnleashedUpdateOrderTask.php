@@ -127,13 +127,13 @@ abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
             // Create/update Consumer
             if (!$this->preview && $apidata) {
                 if (empty($consumer)) {
-                    $newItem = Consumer::create([
+                    $consumer = Consumer::create([
                         'Title' => 'OrderUpdate',
                         'ExternalLastEditedKey' => 'LastModifiedOn'
                     ]);
                 }
-                $newItem->setMaxExternalLastEdited($apidata);
-                $newItem->write();
+                $consumer->setMaxExternalLastEdited($apidata);
+                $consumer->write();
             }
         } // end if response == 200
     }

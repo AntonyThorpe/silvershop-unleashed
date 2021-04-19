@@ -191,13 +191,13 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
 
         if (!$this->preview && $apidata) {
             if (empty($consumer)) {
-                $newItem = Consumer::create([
+                $consumer = Consumer::create([
                     'Title' => 'ProductUpdate',
                     'ExternalLastEditedKey' => 'LastModifiedOn'
                 ]);
             }
-            $newItem->setMaxExternalLastEdited($apidata);
-            $newItem->write();
+            $consumer->setMaxExternalLastEdited($apidata);
+            $consumer->write();
         }
     }
 }
