@@ -1,7 +1,7 @@
 # silvershop-unleashed
 Silvershop submodule that integrates with Unleashed Software Inventory Management
 
-[![Build Status](https://travis-ci.org/AntonyThorpe/silvershop-unleashed.svg?branch=master)](https://travis-ci.org/AntonyThorpe/silvershop-unleashed)
+[![CI](https://github.com/AntonyThorpe/silvershop-unleashed/actions/workflows/ci.yml/badge.svg)](https://github.com/AntonyThorpe/silvershop-unleashed/actions/workflows/ci.yml)
 [![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/antonythorpe/silvershop-unleashed/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/antonythorpe/silvershop-unleashed/?branch=master)
 [![Latest Stable Version](https://poser.pugx.org/antonythorpe/silvershop-unleashed/v/stable)](https://packagist.org/packages/antonythorpe/silvershop-unleashed)
 [![Total Downloads](https://poser.pugx.org/antonythorpe/silvershop-unleashed/downloads)](https://packagist.org/packages/antonythorpe/silvershop-unleashed)
