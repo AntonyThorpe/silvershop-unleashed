@@ -4,8 +4,8 @@
 	"type": "silverstripe-vendormodule",
 	"keywords": ["Silverstripe", "Silvershop", "eCommerce", "Unleashed Software", "inventory management"],
 	"require": {
-		"antonythorpe/consumer": "^2.0.2",
-        "guzzlehttp/guzzle": "^6.3.3",
+		"antonythorpe/consumer": "^2.0.3",
+        "guzzlehttp/guzzle": "^7.4.4",
 		"silvershop/core": "^3.0.0"
 	},
 	"require-dev": {
