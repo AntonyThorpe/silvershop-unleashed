@@ -27,7 +27,7 @@ class UnleashedOrderTest extends SapphireTest
         'fixtures/models.yml'
     ];
 
-    public function setUp()
+    public function setUp(): void
     {
         Defaults::config()->send_sales_orders_to_unleashed = false;
         Defaults::config()->tax_modifier_class_name = 'SilverShop\Model\Modifiers\Tax\FlatTax';
@@ -189,18 +189,18 @@ class UnleashedOrderTest extends SapphireTest
         $order->calculate();
         $body = $order->setBodySalesOrderLines($body, $order, 'SilverShop\Model\Modifiers\Tax\FlatTax', 2);
         $result = json_encode($body);
-        $this->assertContains(
+        $this->assertStringContainsString(
             'SalesOrderLines',
             $result,
             'Contains SalesOrderLines'
         );
-        $this->assertContains(
+        $this->assertStringContainsString(
             '"LineType":null,"LineTotal":8,"OrderQuantity":1,"Product":{"Guid":"G11"},"UnitPrice":8,"LineTax":1.2,"LineTaxCode":"OUTPUT2"}',
             $result,
             'Set SetBodySalesOrderLines line 1',
         );
 
-        $this->assertContains(
+        $this->assertStringContainsString(
             '"LineType":null,"LineTotal":400,"OrderQuantity":2,"Product":{"Guid":"G15"},"UnitPrice":200,"LineTax":60,"LineTaxCode":"OUTPUT2"}',
             $result,
             'Set SetBodySalesOrderLines line 2'

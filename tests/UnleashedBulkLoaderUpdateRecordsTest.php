@@ -20,7 +20,7 @@ class UnleashedBulkLoaderUpdateRecordsTest extends SapphireTest
     private $mp3player;
     private $socks;
 
-    public function setUp()
+    public function setUp(): void
     {
         Defaults::config()->send_sales_orders_to_unleashed = false;
         parent::setUp();
