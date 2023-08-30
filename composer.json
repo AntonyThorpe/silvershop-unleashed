@@ -10,8 +10,8 @@
 	},
 	"require-dev": {
 		"phpunit/phpunit": "^9.5",
-        "silvershop/geocoding": "dev-master",
-        "silvershop/shipping": "dev-master"
+        "silvershop/geocoding": "dev-main",
+        "silvershop/shipping": "dev-main"
 	},
     "autoload": {
         "psr-4": {
