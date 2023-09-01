@@ -85,7 +85,6 @@ class UnleashedOrderTest extends SapphireTest
 
         // Check Dataobjects
         $order1 = Order::get()->find('Reference', 'O1');
-        //print_r($order1);
         $this->assertEquals(
             'Processing',
             $order1->Status,
@@ -178,16 +177,19 @@ class UnleashedOrderTest extends SapphireTest
 
     public function testSetBodySalesOrderLines()
     {
-        $body = [
-            'Tax' => [
-                'TaxCode' => 'OUTPUT2'
-            ]
-        ];
         $order = $this->objFromFixture(Order::class, "paid1");
         OrderProcessor::create($order)->placeOrder();
-        $order->write();
-        $order->calculate();
-        $body = $order->setBodySalesOrderLines($body, $order, 'SilverShop\Model\Modifiers\Tax\FlatTax', 2);
+        $this->assertEquals(408, $order->Total(), "check totals");
+        $body = $order->setBodySalesOrderLines(
+            [
+                'Tax' => [
+                    'TaxCode' => 'OUTPUT2'
+                ]
+            ],
+            $order,
+            'SilverShop\Model\Modifiers\Tax\FlatTax',
+            2
+        );
         $result = json_encode($body);
         $this->assertStringContainsString(
             'SalesOrderLines',
