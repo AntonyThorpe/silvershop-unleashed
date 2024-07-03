@@ -25,21 +25,21 @@ class UnleashedProductCategoryTest extends SapphireTest
         ShopTest::setConfiguration(); //reset config
 
         //publish some product categories and products
-        $this->objFromFixture(ProductCategory::class, 'products')->publish('Stage', 'Live');
-        $this->objFromFixture(ProductCategory::class, 'clothing')->publish('Stage', 'Live');
-        $this->objFromFixture(ProductCategory::class, 'electronics')->publish('Stage', 'Live');
-        $this->objFromFixture(ProductCategory::class, 'musicplayers')->publish('Stage', 'Live');
-        $this->objFromFixture(ProductCategory::class, 'clearance')->publish('Stage', 'Live');
-        $this->objFromFixture(ProductCategory::class, 'newguy')->publish('Stage', 'Live');
+        $this->objFromFixture(ProductCategory::class, 'products')->copyVersionToStage('Stage', 'Live');
+        $this->objFromFixture(ProductCategory::class, 'clothing')->copyVersionToStage('Stage', 'Live');
+        $this->objFromFixture(ProductCategory::class, 'electronics')->copyVersionToStage('Stage', 'Live');
+        $this->objFromFixture(ProductCategory::class, 'musicplayers')->copyVersionToStage('Stage', 'Live');
+        $this->objFromFixture(ProductCategory::class, 'clearance')->copyVersionToStage('Stage', 'Live');
+        $this->objFromFixture(ProductCategory::class, 'newguy')->copyVersionToStage('Stage', 'Live');
     }
 
-    public function testSetGuidAndAdjustTitle()
+    public function testSetGuidAndAdjustTitle(): void
     {
-        $apidata = json_decode($this->jsondata, true);
+        $apidata = (array) json_decode($this->jsondata, true, flags: JSON_BIGINT_AS_STRING | JSON_OBJECT_AS_ARRAY);
         $apidata = reset($apidata);
 
         // Test the setting of a Guid
-        $loader = ProductCategoryBulkLoader::create('SilverShop\Page\ProductCategory');
+        $loader = ProductCategoryBulkLoader::create(ProductCategory::class);
         $loader->transforms = [
             'Title' => [
                 'callback' => function ($value, &$placeholder) {

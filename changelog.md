@@ -1,5 +1,8 @@
 # Change Log of Silvershop Unleashed
 
+* 5.0.0 Upgrade to PHP 8.1
+Breaking changes.  Changed namespace `AntonyThorpe\SilvershopUnleashed` to `AntonyThorpe\SilverShopUnleashed`.  Minimum PHP version 8.1.
+
 * 4.0.0 Updated Namespaces to comply with PSR-4.  See [Upgrading](docs/en/upgrading.md) documentation.
 
 * 3.0.0 Expanded default setting options and added tests

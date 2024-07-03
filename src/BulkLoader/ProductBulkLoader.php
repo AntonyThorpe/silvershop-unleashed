@@ -3,14 +3,14 @@
 namespace AntonyThorpe\SilverShopUnleashed\BulkLoader;
 
 use AntonyThorpe\Consumer\BulkLoader;
+use SilverShop\Page\Product;
 
 class ProductBulkLoader extends BulkLoader
 {
     /**
      * The default behaviour for creating relations
-     * @var boolean
      */
-    protected $relationCreateDefault = false;
+    protected bool $relationCreateDefault = false;
 
     /**
      * Specify a colsure to be run on every imported record.
@@ -42,13 +42,13 @@ class ProductBulkLoader extends BulkLoader
 
     /**
      * Specify a colsure to be run on every imported record to set other records
-     * @param object $obj The placeholder
+     * @param Product $obj The placeholder
      * @param array $record A row from the external API
      */
-    public function setOtherProperties(&$obj, $record)
+    public function setOtherProperties(Product &$obj, array $record): void
     {
         if ($record['Obsolete']) {
-            $obj->AllowPurchase = 0;
+            $obj->AllowPurchase = false;
         }
     }
 }

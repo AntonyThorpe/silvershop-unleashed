@@ -9,7 +9,9 @@ Unleashed API Setup: see 'Integration/Unleashed API Access' in Unleashed for you
 AntonyThorpe\SilverShopUnleashed\UnleashedAPI:
   id: 'XXX'
   key: 'XXXXX'
+  client_type: 'your_business_name/your_environment_type' # for API Tracking
   logfailedcalls: true
+  logsuccessfulcalls: true
   debug: true
 ```
 
@@ -27,6 +29,7 @@ AntonyThorpe\SilverShopUnleashed\Defaults:
   payment_term: 7 Days # Default is Same Day
   customer_type: General
   sales_order_group: Online
+  client_type: Your_Business_Name/Type_of_Call #tracking for api statistics
 
 SilverShop\Model\Modifiers\Shipping\Simple:  # or SilverShop\Shipping\ShippingFrameworkModifier if using silvershop-shipping
   product_code: Freight  # Freight is an existing Product Code in Unleashed

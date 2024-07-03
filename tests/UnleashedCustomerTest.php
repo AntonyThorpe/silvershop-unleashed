@@ -9,6 +9,7 @@ use SilverStripe\Dev\SapphireTest;
 
 class UnleashedCustomerTest extends SapphireTest
 {
+    public Order $order;
     protected static $fixture_file = [
         'vendor/silvershop/core/tests/php/Fixtures/ShopMembers.yml',
         'vendor/silvershop/core/tests/php/Fixtures/Orders.yml',
@@ -23,7 +24,7 @@ class UnleashedCustomerTest extends SapphireTest
         $this->order = $this->objFromFixture(Order::class, "cart1");
     }
 
-    public function testGetAddressNameFromOrder()
+    public function testGetAddressNameFromOrder(): void
     {
         $this->assertSame(
             '201-203 BROADWAY AVE U 235 WEST BEACH',
@@ -32,28 +33,28 @@ class UnleashedCustomerTest extends SapphireTest
         );
     }
 
-    public function testGetAddressNameItems()
+    public function testGetAddressNameItems(): void
     {
-        $apidata_array = json_decode($this->jsondata, true);
+        $apidata_array = (array) json_decode($this->jsondata, true);
         $apidata_array = reset($apidata_array);
-        $apidata = $apidata_array['Items'];
+        $items = $apidata_array['Items'];
 
         $this->assertSame(
             '31 Hurstmere Road RD1 Auckland',
-            $this->order->getAddressName($apidata[0]['Addresses'][1]),
+            $this->order->getAddressName($items[0]['Addresses'][1]),
             'Result matches 31 Hurstmere Road RD1 Auckland'
         );
     }
 
-    public function testMatchCustomerAddress()
+    public function testMatchCustomerAddress(): void
     {
-        $apidata_array = json_decode($this->jsondata, true);
+        $apidata_array = (array) json_decode($this->jsondata, true);
         $apidata_array = reset($apidata_array);
-        $apidata = $apidata_array['Items'];
+        $items = $apidata_array['Items'];
 
         // Test a failed match
         $this->assertFalse(
-            $this->order->matchCustomerAddress($apidata, $this->order->ShippingAddress()),
+            $this->order->matchCustomerAddress($items, $this->order->ShippingAddress()),
             "The address in the API data does not match the order's shipping address"
         );
 
@@ -64,7 +65,7 @@ class UnleashedCustomerTest extends SapphireTest
         $shipping_address->City = 'Auckland';
 
         $this->assertTrue(
-            $this->order->matchCustomerAddress($apidata, $shipping_address),
+            $this->order->matchCustomerAddress($items, $shipping_address),
             "The address in the API data matches the order's shipping address"
         );
     }

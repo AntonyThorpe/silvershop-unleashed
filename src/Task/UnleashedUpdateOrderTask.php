@@ -2,42 +2,35 @@
 
 namespace AntonyThorpe\SilverShopUnleashed\Task;
 
+use SilverShop\Model\Order;
 use AntonyThorpe\Consumer\Consumer;
 use AntonyThorpe\SilverShopUnleashed\BulkLoader\OrderBulkLoader;
-use AntonyThorpe\SilvershopUnleashed\Defaults;
+use AntonyThorpe\SilverShopUnleashed\Defaults;
 use AntonyThorpe\SilverShopUnleashed\Task\UnleashedBuildTask;
 use AntonyThorpe\SilverShopUnleashed\UnleashedAPI;
 use DateTime;
-use GuzzleHttp\Exception\RequestException;
-use Psr\Http\Message\ResponseInterface;
 use SilverShop\Extension\ShopConfigExtension;
 use SilverStripe\Control\Email\Email;
 use SilverStripe\Dev\Debug;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
+
 
 /**
  * Update Order with fresh data from Unleashed's Sales Orders
  */
 abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
 {
-    /**
-     * @var string
-     */
     protected $title = "Unleashed: Update Orders";
 
-    /**
-     * @var string
-     */
     protected $description = "Update Orders in Silvershop with with data received from Unleashed.  Will update the OrderStatus of the Silvershop items.";
 
-    protected $email_subject = "API Unleashed Software - Update Order Results";
+    protected string $email_subject = "API Unleashed Software - Update Order Results";
 
     /**
      * Order status map from Unleashed to Silvershop
-     *
      * For converting from Unleashed Sales Order Status to Silvershop
-     * @var array
      */
-    protected $order_status_map = [
+    protected array $order_status_map = [
         'Open' => 'Unpaid',
         'Parked' => 'Paid',
         'Backordered' => 'Processing',
@@ -57,7 +50,7 @@ abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
         $query = [];
         $consumer = Consumer::get()->find('Title', 'OrderUpdate');  // to get modifiedSince
 
-        if (!empty($consumer)) {
+        if ($consumer) {
             $date = new DateTime($consumer->ExternalLastEdited);
             $query['modifiedSince'] = substr($date->format('Y-m-d\TH:i:s.u'), 0, 23);
         }
@@ -72,11 +65,11 @@ abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
             ['query' => $query]
         );
 
-        if ($response->getStatusCode() == '200') {
-            $apidata_array = json_decode($response->getBody()->getContents(), true);
+        if ($response->getStatusCode() == 200) {
+            $apidata_array = (array) json_decode($response->getBody(), true);
             $apidata = $apidata_array['Items'];
             $pagination = $apidata_array['Pagination'];
-            $numberofpages = (int) $pagination['NumberOfPages'];
+            $numberofpages = intval($pagination['NumberOfPages']);
 
             if ($numberofpages > 1) {
                 for ($i = 2; $i <= $numberofpages; $i++) {
@@ -85,21 +78,20 @@ abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
                         'https://api.unleashedsoftware.com/SalesOrders/' . $i,
                         ['query' => $query]
                     );
-                    if ($response->getStatusCode() == '200') {
-                        $apidata_array = json_decode($response->getBody()->getContents(), true);
+                    if ($response->getStatusCode() == 200) {
+                        $apidata_array = (array) json_decode($response->getBody(), true);
                         $apidata = array_merge($apidata, $apidata_array['Items']);
                     }
                 }
             }
 
             $this->log('<h3>Update the OrderStatus in Silvershop</h3>');
-            $loader = OrderBulkLoader::create('SilverShop\Model\Order');
+            $loader = OrderBulkLoader::create(Order::class);
             $loader->transforms = [
                 'Status' => [
-                    'callback' => function ($value) {
+                    'callback' => fn($value) =>
                         // convert from Unleashed Sales Order status to Silvershop
-                        return $this->order_status_map[$value];
-                    }
+                        $this->order_status_map[$value]
                 ]
             ];
             $results = $loader->updateRecords($apidata, $this->preview);
@@ -113,20 +105,28 @@ abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
             if ($results->Count() && $this->email_subject && !$this->preview && Email::config()->admin_email) {
                 $data = $results->getData();
                 $email = Email::create(
-                    ShopConfigExtension::config()->email_from ? ShopConfigExtension::config()->email_from : Email::config()->admin_email,
+                    ShopConfigExtension::config()->email_from ?: Email::config()->admin_email,
                     Email::config()->admin_email,
                     $this->email_subject,
                     Debug::text($data)
                 );
-                $dispatched = $email->send();
-                if ($dispatched) {
-                    $this->log("Email sent");
+
+                $dispatched = true;
+                try {
+                    $email->send();
+                } catch (TransportExceptionInterface $e) {
+                    $dispatched = false;
+                    $this->log("Email not sent: " . $e->getDebug());
+                } finally {
+                    if ($dispatched) {
+                        $this->log("Email sent");
+                    }
                 }
             }
 
             // Create/update Consumer
             if (!$this->preview && $apidata) {
-                if (empty($consumer)) {
+                if (!$consumer) {
                     $consumer = Consumer::create([
                         'Title' => 'OrderUpdate',
                         'ExternalLastEditedKey' => 'LastModifiedOn'
@@ -135,6 +135,6 @@ abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
                 $consumer->setMaxExternalLastEdited($apidata);
                 $consumer->write();
             }
-        } // end if response == 200
+        }
     }
 }

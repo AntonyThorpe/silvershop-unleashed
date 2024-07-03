@@ -5,8 +5,6 @@ namespace AntonyThorpe\SilverShopUnleashed\Task;
 use AntonyThorpe\Consumer\Utilities;
 use AntonyThorpe\SilverShopUnleashed\Task\UnleashedBuildTask;
 use AntonyThorpe\SilverShopUnleashed\UnleashedAPI;
-use GuzzleHttp\Exception\RequestException;
-use Psr\Http\Message\ResponseInterface;
 use SilverShop\Page\ProductCategory;
 
 /**
@@ -15,16 +13,9 @@ use SilverShop\Page\ProductCategory;
  */
 abstract class UnleashedCompareProductCategoriesTask extends UnleashedBuildTask
 {
-    /**
-     * @var string
-     */
     protected $title = "Unleashed: Product Categories comparison with Silvershop";
 
-    /**
-     * @var string
-     */
     protected $description = "Compare Product Categories with those in Unleashed";
-
 
     public function run($request)
     {
@@ -38,7 +29,7 @@ abstract class UnleashedCompareProductCategoriesTask extends UnleashedBuildTask
         );
 
         // Response body contents
-        $unleashedCategoriesList = json_decode($response->getBody()->getContents(), true);
+        $unleashedCategoriesList = (array) json_decode($response->getBody(), true);
 
         if ($response->getStatusCode() == '200' && is_array($unleashedCategoriesList)) {
             $unleashedCategories = array_column($unleashedCategoriesList['Items'], 'GroupName');
@@ -51,12 +42,12 @@ abstract class UnleashedCompareProductCategoriesTask extends UnleashedBuildTask
 
             echo "<h2>Product Categories in Unleashed</h2>";
             foreach ($unleashedCategoriesList['Items'] as $category) {
-                $this->log(htmlspecialchars($category['GroupName'], ENT_QUOTES, 'utf-8'));
+                $this->log(htmlspecialchars((string) $category['GroupName'], ENT_QUOTES, 'utf-8'));
             }
 
             echo "<h2>Duplicate Check: Silvershop</h2>";
             $duplicates = Utilities::getDuplicates($silvershopProductCategoryTitle);
-            if (!empty($duplicates)) {
+            if ($duplicates !== []) {
                 foreach ($duplicates as $duplicate) {
                     $this->log($duplicate);
                 }
@@ -69,9 +60,9 @@ abstract class UnleashedCompareProductCategoriesTask extends UnleashedBuildTask
 
             echo "<h2>Duplicate Check: Unleashed</h2>";
             $duplicates = Utilities::getDuplicates($unleashedCategories);
-            if (!empty($duplicates)) {
+            if ($duplicates !== []) {
                 foreach ($duplicates as $duplicate) {
-                    $this->log(htmlspecialchars($duplicate, ENT_QUOTES, 'utf-8'));
+                    $this->log(htmlspecialchars((string) $duplicate, ENT_QUOTES, 'utf-8'));
                 }
                 $this->log(
                     'Please remove duplicates from Unleashed before running any Unleased Update Build Tasks'
@@ -99,7 +90,7 @@ abstract class UnleashedCompareProductCategoriesTask extends UnleashedBuildTask
             echo "<h2>Product Categories in Unleashed but not the Silvershop</h2>";
             foreach ($unleashedCategories as $category) {
                 if (!in_array($category, $silvershopProductCategoryTitle)) {
-                    $this->log(htmlspecialchars($category, ENT_QUOTES, 'utf-8'));
+                    $this->log(htmlspecialchars((string) $category, ENT_QUOTES, 'utf-8'));
                 }
             }
             $this->log('<b>Done</b>');

@@ -7,33 +7,25 @@ use AntonyThorpe\Consumer\Utilities;
 use AntonyThorpe\SilverShopUnleashed\BulkLoader\ProductBulkLoader;
 use AntonyThorpe\SilverShopUnleashed\Task\UnleashedBuildTask;
 use AntonyThorpe\SilverShopUnleashed\UnleashedAPI;
-use DateTime;
 use DateTimeZone;
-use GuzzleHttp\Exception\RequestException;
-use Psr\Http\Message\ResponseInterface;
 use SilverShop\Extension\ShopConfigExtension;
 use SilverShop\Page\Product;
 use SilverShop\Page\ProductCategory;
 use SilverStripe\Control\Email\Email;
 use SilverStripe\Core\Convert;
 use SilverStripe\Dev\Debug;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 /**
  * Update Products with fresh data from Unleashed Inventory Management Software
  */
 abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
 {
-    /**
-     * @var string
-     */
     protected $title = "Unleashed: Update Products";
 
-    /**
-     * @var string
-     */
     protected $description = "Update the Products in Silvershop with data from Unleashed.  Will not automatically bring over new items but will update Titles, Base Price, etc.";
 
-    protected $email_subject = "API Unleashed Software - Update Product Results";
+    protected string $email_subject = "API Unleashed Software - Update Product Results";
 
     public function run($request)
     {
@@ -43,13 +35,13 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
         $consumer = Consumer::get()->find('Title', 'ProductUpdate');
 
         // Get Products from Unleashed
-        if (empty($consumer)) {
+        if (!$consumer) {
             $response = UnleashedAPI::sendCall(
                 'GET',
                 'https://api.unleashedsoftware.com/Products'
             );
 
-            $apidata_array = json_decode($response->getBody()->getContents(), true);
+            $apidata_array = (array) json_decode($response->getBody(), true);
             $apidata = $apidata_array['Items'];
             $pagination = $apidata_array['Pagination'];
             $numberofpages = (int) $pagination['NumberOfPages'];
@@ -60,7 +52,7 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
                         'GET',
                         'https://api.unleashedsoftware.com/Products/' . $i
                     );
-                    $apidata_array = json_decode($response->getBody()->getContents(), true);
+                    $apidata_array = (array) json_decode($response->getBody(), true);
                     $apidata = array_merge($apidata, $apidata_array['Items']);
                 }
             }
@@ -76,7 +68,7 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
                 ['query' => $query]
             );
 
-            $apidata_array = json_decode($response->getBody()->getContents(), true);
+            $apidata_array = (array) json_decode($response->getBody()->getContents(), true);
             $apidata = $apidata_array['Items'];
             $pagination = $apidata_array['Pagination'];
             $numberofpages = (int) $pagination['NumberOfPages'];
@@ -88,7 +80,7 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
                         'https://api.unleashedsoftware.com/Products/' . $i,
                         ['query' => $query]
                     );
-                    $apidata_array = json_decode($response->getBody()->getContents(), true);
+                    $apidata_array = (array) json_decode($response->getBody()->getContents(), true);
                     $apidata = array_merge($apidata, $apidata_array['Items']);
                 }
             }
@@ -97,7 +89,7 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
         $this->log('<h2>Preliminary Checks</h2>');
         // Check for duplicates in DataList before proceeding further
         $duplicates = Utilities::getDuplicates($silvershopInternalItemIDMustBeUnique);
-        if (!empty($duplicates)) {
+        if ($duplicates !== []) {
             echo "<h2>Duplicate check of Product InternalItemID within Silvershop</h2>";
             foreach ($duplicates as $duplicate) {
                 $this->log($duplicate);
@@ -110,7 +102,7 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
         }
 
         $duplicates = Utilities::getDuplicates($silvershopTitleMustBeUnique);
-        if (!empty($duplicates)) {
+        if ($duplicates !== []) {
             echo "<h2>Duplicate check of Product Titles within Silvershop</h2>";
             foreach ($duplicates as $duplicate) {
                 $this->log($duplicate);
@@ -124,10 +116,10 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
 
         // Check for duplicates in apidata before proceeding further
         $duplicates = Utilities::getDuplicates(array_column($apidata, 'ProductCode'));
-        if (!empty($duplicates)) {
+        if ($duplicates !== []) {
             echo "<h2>Duplicate check of ProductCode within Unleashed</h2>";
             foreach ($duplicates as $duplicate) {
-                $this->log(htmlspecialchars($duplicate, ENT_QUOTES, 'utf-8'));
+                $this->log(htmlspecialchars((string) $duplicate, ENT_QUOTES, 'utf-8'));
             }
             $this->log(
                 'Please remove duplicates from Unleashed before running this Build Task'
@@ -140,12 +132,12 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
 
         // Update
         $this->log('<h3>Update Product records in Silvershop</h3>');
-        $loader = ProductBulkLoader::create('SilverShop\Page\Product');
+        $loader = ProductBulkLoader::create(Product::class);
         $loader->transforms = [
             'Parent' => [
-                'callback' => function ($value) {
+                'callback' => function (array $value) {
                     $obj = ProductCategory::get()->find('Guid', $value['Guid']);
-                    if (!empty($obj)) {
+                    if ($obj) {
                         return $obj;
                     } else {
                         return ProductCategory::get()->find('Title', $value['GroupName']);
@@ -153,9 +145,7 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
                 }
             ],
             'BasePrice' => [
-                'callback' => function ($value) {
-                    return (float)$value;
-                }
+                'callback' => fn($value): float => (float)$value
             ],
             'Title' => [
                 'callback' => function ($value, &$placeholder) {
@@ -178,19 +168,27 @@ abstract class UnleashedUpdateProductTask extends UnleashedBuildTask
         if ($results->Count() && !$this->preview && Email::config()->admin_email && $this->email_subject) {
             // send email
             $email = Email::create(
-                ShopConfigExtension::config()->email_from ? ShopConfigExtension::config()->email_from : Email::config()->admin_email,
+                ShopConfigExtension::config()->email_from ?: Email::config()->admin_email,
                 Email::config()->admin_email,
                 $this->email_subject,
                 Debug::text($results->getData())
             );
-            $dispatched = $email->send();
-            if ($dispatched) {
-                $this->log('Email sent');
+
+            $dispatched = true;
+            try {
+                $email->send();
+            } catch (TransportExceptionInterface $e) {
+                $dispatched = false;
+                $this->log("Email not sent: " . $e->getDebug());
+            } finally {
+                if ($dispatched) {
+                    $this->log("Email sent");
+                }
             }
         }
 
         if (!$this->preview && $apidata) {
-            if (empty($consumer)) {
+            if (!$consumer) {
                 $consumer = Consumer::create([
                     'Title' => 'ProductUpdate',
                     'ExternalLastEditedKey' => 'LastModifiedOn'

@@ -8,15 +8,10 @@ namespace AntonyThorpe\SilverShopUnleashed;
 class Utils
 {
     /**
-     * Create a global unique id
-     *
-     * @return string Guid
+     * Create a global unique id and return it
      */
-    public static function createGuid()
+    public static function createGuid(): string
     {
-        if (function_exists('com_create_guid') === true) {
-            return trim(com_create_guid(), '{}');
-        }
         return strtolower(sprintf(
             '%04X%04X-%04X-%04X-%04X-%04X%04X%04X',
             mt_rand(0, 65535),

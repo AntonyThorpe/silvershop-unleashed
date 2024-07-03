@@ -1,12 +1,14 @@
 <?php
 
-namespace AntonyThorpe\SilvershopUnleashed\Extension;
+namespace AntonyThorpe\SilverShopUnleashed\Extension;
 
 use DateTime;
 use SilverStripe\Security\Member;
 use SilverStripe\ORM\FieldType\DBDatetime;
 use SilverStripe\ORM\DataExtension;
+use SilverStripe\ORM\DataObject;
 use SilverShop\Extension\ShopConfigExtension;
+use SilverShop\Model\Address;
 use AntonyThorpe\SilverShopUnleashed\UnleashedAPI;
 use AntonyThorpe\SilverShopUnleashed\Defaults;
 use AntonyThorpe\SilverShopUnleashed\Utils;
@@ -15,27 +17,27 @@ class Order extends DataExtension
 {
     /**
      * Record when an order is sent to Unleashed
+     * @config
      */
-    private static $db = [
+    private static array $db = [
         'OrderSentToUnleashed' => 'Datetime'
     ];
 
     /**
      * Apply Guid if absent
      */
-    public function onBeforeWrite()
+    public function onBeforeWrite(): void
     {
         parent::onBeforeWrite();
-        if (!$this->owner->getField("Guid")) {
-            $this->owner->Guid = (string) Utils::createGuid();
+        if (!$this->getOwner()->getField("Guid")) {
+            $this->getOwner()->Guid = Utils::createGuid();
         }
     }
 
     /**
      * Return the Address Name
-     * @return string
      */
-    public function getAddressName($address)
+    public function getAddressName(array|Address $address): string
     {
         if (is_array($address)) {
             $address_name = $address['StreetAddress'];
@@ -55,49 +57,40 @@ class Order extends DataExtension
 
     /**
      * Match the order's shipping address to items returned from Unleashed
-     * @return boolean
      */
-    public function matchCustomerAddress($items, $shipping_address)
+    public function matchCustomerAddress(array $items, array|Address $shipping_address): bool
     {
         // Obtain the delivery address
         $address = $items[0]['Addresses'][0];
-        if ($address['AddressType'] != "Physical") {
-            if (isset($items[0]['Addresses'][1])) {
-                $address = $items[0]['Addresses'][1];
-            }
+        if ($address['AddressType'] != "Physical" && isset($items[0]['Addresses'][1])) {
+            $address = $items[0]['Addresses'][1];
         }
-        return strtoupper($this->getAddressName($shipping_address)) == strtoupper($this->getAddressName($address));
+        return strtoupper($this->getAddressName($shipping_address)) === strtoupper($this->getAddressName($address));
     }
 
     /**
      * add the address components to the body array
-     * @param array $body
-     * @param object $order
-     * @param string $type (either Postal or Physical)
-     * @return array $body
+     * $type is either Postal or Physical
      */
-    public function setBodyAddress($body, $order, $type)
+    public function setBodyAddress(array $body, DataObject $order, string $type): array
     {
-        $countries = ShopConfigExtension::config()->iso_3166_country_codes;
+        $countries = (array) ShopConfigExtension::config()->iso_3166_country_codes;
 
-        if ($type == 'Postal') {
+        if ($type === 'Postal') {
             $address = $order->BillingAddress();
-            array_push(
-                $body['Addresses'],
-                [
-                    'AddressName' => $this->getAddressName($address),
-                    'AddressType' => $type,
-                    'City' => $address->City,
-                    'Country' => $countries[$address->Country],
-                    'PostalCode' => $address->PostalCode,
-                    'Region' => $address->State,
-                    'StreetAddress' => $address->Address,
-                    'StreetAddress2' => $address->AddressLine2
-                ]
-            );
+            $body['Addresses'][] = [
+                'AddressName' => $this->getAddressName($address),
+                'AddressType' => $type,
+                'City' => $address->City,
+                'Country' => $countries[$address->Country],
+                'PostalCode' => $address->PostalCode,
+                'Region' => $address->State,
+                'StreetAddress' => $address->Address,
+                'StreetAddress2' => $address->AddressLine2
+            ];
         }
 
-        if ($type == 'Physical') {
+        if ($type === 'Physical') {
             $address = $order->ShippingAddress();
             $body['DeliveryCity'] = $address->City;
             $body['DeliveryCountry'] = $countries[$address->Country];
@@ -106,45 +99,36 @@ class Order extends DataExtension
             $body['DeliveryStreetAddress'] = $address->Address;
             $body['DeliveryStreetAddress2'] = $address->AddressLine2;
 
-            array_push(
-                $body['Addresses'],
-                [
-                    'AddressName' => $this->getAddressName($address),
-                    'AddressType' => 'Physical',
-                    'City' => $address->City,
-                    'Country' => $countries[$address->Country],
-                    'PostalCode' => $address->PostalCode,
-                    'Region' => $address->State,
-                    'StreetAddress' => $address->Address,
-                    'StreetAddress2' => $address->AddressLine2
-                ]
-            );
+            $body['Addresses'][] = [
+                'AddressName' => $this->getAddressName($address),
+                'AddressType' => 'Physical',
+                'City' => $address->City,
+                'Country' => $countries[$address->Country],
+                'PostalCode' => $address->PostalCode,
+                'Region' => $address->State,
+                'StreetAddress' => $address->Address,
+                'StreetAddress2' => $address->AddressLine2
+            ];
 
-            array_push(
-                $body['Addresses'],
-                [
-                    'AddressName' => $this->getAddressName($address),
-                    'AddressType' => 'Shipping',
-                    'City' => $address->City,
-                    'Country' => $countries[$address->Country],
-                    'PostalCode' => $address->PostalCode,
-                    'Region' => $address->State,
-                    'StreetAddress' => $address->Address,
-                    'StreetAddress2' => $address->AddressLine2
-                ]
-            );
+            $body['Addresses'][] = [
+                'AddressName' => $this->getAddressName($address),
+                'AddressType' => 'Shipping',
+                'City' => $address->City,
+                'Country' => $countries[$address->Country],
+                'PostalCode' => $address->PostalCode,
+                'Region' => $address->State,
+                'StreetAddress' => $address->Address,
+                'StreetAddress2' => $address->AddressLine2
+            ];
         }
 
         return $body;
     }
 
     /**
-     * add the currency code to the body array
-     * @param array $body
-     * @param object $order
-     * @return array $body
+     * Add the currency code to the body array
      */
-    public function setBodyCurrencyCode($body, $order)
+    public function setBodyCurrencyCode(array $body, DataObject $order): array
     {
         $body['Currency']['CurrencyCode'] = $order->Currency();
         return $body;
@@ -152,11 +136,8 @@ class Order extends DataExtension
 
     /**
      * Add the Customer Code/Name (use Company field of BillingAddress to allow for B2B eCommerce sites)
-     * @param array $body
-     * @param object $order
-     * @return array $body
      */
-    public function setBodyCustomerCodeAndName($body, $order)
+    public function setBodyCustomerCodeAndName(array $body, DataObject $order): array
     {
         $billing_address = $order->BillingAddress();
         if ($billing_address->Company) {
@@ -174,11 +155,8 @@ class Order extends DataExtension
     /**
      * Set Delivery Method and Delivery Name
      * Allow for the SilverShop Shipping module
-     * @param array $body
-     * @param object $order
-     * @return array $body
      */
-    public function setBodyDeliveryMethodAndDeliveryName($body, $order, $shipping_modifier_class_name)
+    public function setBodyDeliveryMethodAndDeliveryName(array $body, DataObject $order, string $shipping_modifier_class_name): array
     {
         $shipping_modifier = $order->getModifier($shipping_modifier_class_name);
         if (!empty($shipping_modifier)) {
@@ -190,13 +168,8 @@ class Order extends DataExtension
 
     /**
      * Set Sales Order Lines
-     * @param array $body
-     * @param object $order
-     * @param string $tax_modifier_class_name
-     * @param int $rounding_precision
-     * @return array $body
      */
-    public function setBodySalesOrderLines($body, $order, $tax_modifier_class_name, $rounding_precision)
+    public function setBodySalesOrderLines(array $body, DataObject $order, string $tax_modifier_class_name, int $rounding_precision): array
     {
         $line_number = 0;
 
@@ -208,16 +181,16 @@ class Order extends DataExtension
             $sales_order_line = [
                 'DiscountRate' => 0,
                 'Guid' => $item->Guid,
-                'LineNumber' => (int) $line_number,
+                'LineNumber' => $line_number,
                 'LineType' => null,
                 'LineTotal' => round(floatval($item->Total()), $rounding_precision),
-                'OrderQuantity' => (int) $item->Quantity,
+                'OrderQuantity' => $item->Quantity,
                 'Product' => [
                     'Guid' => $product->Guid
                 ],
                 'UnitPrice' => round(floatval($product->getPrice()), $rounding_precision)
             ];
-            if ($tax_modifier_class_name) {
+            if ($tax_modifier_class_name !== '' && $tax_modifier_class_name !== '0') {
                 $tax_calculator = new $tax_modifier_class_name;
                 $sales_order_line['LineTax'] = round(
                     $tax_calculator->value($item->Total()),
@@ -240,7 +213,7 @@ class Order extends DataExtension
                 $sales_order_line = [
                     'DiscountRate' => 0,
                     'Guid' => $modifier->Guid,
-                    'LineNumber' => (int) $line_number,
+                    'LineNumber' => $line_number,
                     'LineTotal' => $line_total,
                     'LineType' => null,
                     'OrderQuantity' => 1,
@@ -249,7 +222,7 @@ class Order extends DataExtension
                     ],
                     'UnitPrice' => round(floatval($modifier->Amount), $rounding_precision)
                 ];
-                if ($tax_modifier_class_name) {
+                if ($tax_modifier_class_name !== '' && $tax_modifier_class_name !== '0') {
                     $tax_calculator = new $tax_modifier_class_name;
                     $sales_order_line['LineTax'] = round(
                         $tax_calculator->value($modifier->Amount),
@@ -265,14 +238,10 @@ class Order extends DataExtension
 
     /**
      * Set the Tax Codes
-     * @param array $body
-     * @param object $order
-     * @param string $tax_modifier_class_name
-     * @return array $body
      */
-    public function setBodyTaxCode($body, $order, $tax_modifier_class_name)
+    public function setBodyTaxCode(array $body, DataObject $order, string $tax_modifier_class_name): array
     {
-        if ($tax_modifier_class_name) {
+        if ($tax_modifier_class_name !== '' && $tax_modifier_class_name !== '0') {
             $tax_modifier = $order->getModifier($tax_modifier_class_name);
             if (!empty($tax_modifier)) {
                 $body['Taxable'] = true;
@@ -285,29 +254,25 @@ class Order extends DataExtension
 
     /**
      * Calculate the SubTotal and TaxTotal
-     * @param array $body
-     * @param object $order
-     * @param string $tax_modifier_class_name
-     * @param int $rounding_precision
-     * @return array $body
      */
-    public function setBodySubTotalAndTax($body, $order, $tax_modifier_class_name, $rounding_precision)
+    public function setBodySubTotalAndTax(array $body, DataObject $order, string $tax_modifier_class_name, int $rounding_precision): array
     {
-        if ($tax_modifier_class_name) {
+        if ($tax_modifier_class_name !== '' && $tax_modifier_class_name !== '0') {
             $tax_modifier = $order->getModifier($tax_modifier_class_name);
 
+            // Calculate the Tax and Sub Total, which excludes Tax
             if (!empty($tax_modifier)) {
                 $sub_total = 0;
                 $tax_total = 0;
                 foreach ($body['SalesOrderLines'] as $item) {
                     $sub_total = bcadd(
-                        $sub_total,
-                        $item['LineTotal'],
+                        (string) $sub_total,
+                        (string) $item['LineTotal'],
                         $rounding_precision
                     );
                     $tax_total = bcadd(
-                        $tax_total,
-                        $item['LineTax'],
+                        (string) $tax_total,
+                        (string) $item['LineTax'],
                         $rounding_precision
                     );
                 }
@@ -332,17 +297,17 @@ class Order extends DataExtension
      * Send a sales order to Unleashed upon paid status
      * May need to create the Customer first
      */
-    public function onAfterWrite()
+    public function onAfterWrite(): void
     {
         parent::onAfterWrite();
-        $config = $this->owner->config();
+        $config = $this->getOwner()->config();
         $defaults = Defaults::config();
 
-        if ($defaults->send_sales_orders_to_unleashed
-            && $this->owner->Status == 'Paid'
-            && !$this->owner->OrderSentToUnleashed) {
+        if ($defaults->get('send_sales_orders_to_unleashed')
+            && $this->getOwner()->Status == 'Paid'
+            && !$this->getOwner()->OrderSentToUnleashed) {
             // Definitions
-            $order = $this->owner;
+            $order = $this->getOwner();
             $member = $order->Member();
             $date_paid = new DateTime($order->Paid);
             $date_placed = new DateTime($order->Placed);
@@ -354,42 +319,42 @@ class Order extends DataExtension
                 'Guid' => $order->Guid,
                 'OrderDate' => $date_placed->format('Y-m-d\TH:i:s'),
                 'OrderNumber' => $order->Reference,
-                'OrderStatus' => $defaults->order_status,
+                'OrderStatus' => $defaults->get('order_status'),
                 'PaymentDueDate' => $date_paid->format('Y-m-d\TH:i:s'),
-                'PaymentTerm' => $defaults->payment_term,
-                'PrintPackingSlipInsteadOfInvoice' => $defaults->print_packingslip_instead_of_invoice,
+                'PaymentTerm' => $defaults->get('payment_term'),
+                'PrintPackingSlipInsteadOfInvoice' => $defaults->get('print_packingslip_instead_of_invoice'),
                 'ReceivedDate' => $date_placed->format('Y-m-d\TH:i:s'),
                 'SalesOrderLines' => [],
                 'SellPriceTier' => ShopConfigExtension::current()->CustomerGroup()->Title,
                 'Taxable' => false,
                 'Tax'  => [],
-                'Total' => round(floatval($order->Total()), $config->rounding_precision),
+                'Total' => round(floatval($order->Total()), $config->get('rounding_precision')),
             ];
 
             $body = $this->setBodyAddress($body, $order, 'Postal');
             $body = $this->setBodyAddress($body, $order, 'Physical');
             $body = $this->setBodyCurrencyCode($body, $order);
             $body = $this->setBodyCustomerCodeAndName($body, $order);
-            $body = $this->setBodyDeliveryMethodAndDeliveryName($body, $order, $defaults->shipping_modifier_class_name);
-            $body = $this->setBodyTaxCode($body, $order, $defaults->tax_modifier_class_name);
-            $body = $this->setBodySalesOrderLines($body, $order, $defaults->tax_modifier_class_name, $config->rounding_precision);
-            $body = $this->setBodySubTotalAndTax($body, $order, $defaults->tax_modifier_class_name, $config->rounding_precision);
+            $body = $this->setBodyDeliveryMethodAndDeliveryName($body, $order, $defaults->get('shipping_modifier_class_name'));
+            $body = $this->setBodyTaxCode($body, $order, $defaults->get('tax_modifier_class_name'));
+            $body = $this->setBodySalesOrderLines($body, $order, $defaults->get('tax_modifier_class_name'), $config->get('rounding_precision'));
+            $body = $this->setBodySubTotalAndTax($body, $order, $defaults->get('tax_modifier_class_name'), $config->get('rounding_precision'));
 
             // Add optional defaults
-            if ($defaults->created_by) {
-                $body['CreatedBy'] = $defaults->created_by;
+            if ($defaults->get('created_by')) {
+                $body['CreatedBy'] = $defaults->get('created_by');
             }
 
-            if ($defaults->customer_type) {
-                $body['CustomerType'] = $defaults->customer_type;
+            if ($defaults->get('customer_type')) {
+                $body['CustomerType'] = $defaults->get('customer_type');
             }
 
-            if ($defaults->sales_order_group) {
-                $body['SalesOrderGroup'] = $defaults->sales_order_group;
+            if ($defaults->get('sales_order_group')) {
+                $body['SalesOrderGroup'] = $defaults->get('sales_order_group');
             }
 
-            if ($defaults->source_id) {
-                $body['SourceId'] = $defaults->source_id;
+            if ($defaults->get('source_id')) {
+                $body['SourceId'] = $defaults->get('source_id');
             }
 
             // add phone number if available
@@ -399,8 +364,8 @@ class Order extends DataExtension
 
             // add required date
             $date_required = new DateTime($order->Paid);
-            if ($defaults->expected_days_to_deliver) {
-                $date_required->modify('+' . $defaults->expected_days_to_deliver . 'day');
+            if ($defaults->get('expected_days_to_deliver')) {
+                $date_required->modify('+' . $defaults->get('expected_days_to_deliver') . 'day');
             }
             $body['RequiredDate'] = $date_required->format('Y-m-d\TH:i:s');
 
@@ -423,10 +388,10 @@ class Order extends DataExtension
                     'https://api.unleashedsoftware.com/Customers?contactEmail=' .  $member->Email
                 );
 
-                if ($response->getStatusCode() == '200') {
-                    $contents = json_decode($response->getBody()->getContents(), true);
+                if ($response->getStatusCode() == 200) {
+                    $contents = (array) json_decode((string) $response->getBody(), true);
                     $items = $contents['Items'];
-                    if ($items) {
+                    if ($items && $items[0]) {
                         // Email address exists
                         $member->Guid = $items[0]['Guid'];
                     } else {
@@ -437,10 +402,10 @@ class Order extends DataExtension
                             'https://api.unleashedsoftware.com/Customers?customerCode=' . $body['CustomerCode']
                         );
 
-                        if ($response->getStatusCode() == '200') {
-                            $contents = json_decode($response->getBody()->getContents(), true);
+                        if ($response->getStatusCode() == 200) {
+                            $contents = json_decode((string) $response->getBody()->getContents(), true);
                             $items = $contents['Items'];
-                            if ($items) {
+                            if ($items && $items[0]) {
                                 // A Customer Code already exists (and the email address is unique).
                                 // If the address is the same then this is the Customer
                                 if ($this->matchCustomerAddress($items, $order->ShippingAddress())) {
@@ -449,7 +414,7 @@ class Order extends DataExtension
                                     //Note the existing email address in the Comment
                                     //PUT Customer is not available in Unleashed
                                     if ($body['Comments']) {
-                                        $body['Comments'] .= PHP_EOL;
+                                        $body['Comments'] .= '.  ';
                                     }
                                     $body['Comments'] .= _t(
                                         'UnleashedAPI.addEmailToCustomerComment',
@@ -461,7 +426,7 @@ class Order extends DataExtension
                                     // The Customer Code already exists, we have a unique email address, but
                                     // the delivery address is new.
                                     // Therefore, we need to create a new Customer with a unique Customer Code.
-                                    $body['CustomerCode'] .= rand(10000000, 99999999);
+                                    $body['CustomerCode'] .= random_int(10000000, 99999999);
                                 }
                             }
                         }
@@ -472,7 +437,7 @@ class Order extends DataExtension
             if (!$member->Guid) {
                 // The Customer Code does not exists in Unleashed and the email address is unique
                 // therefore create in Unleashed
-                $member->Guid = (string) Utils::createGuid();
+                $member->Guid = Utils::createGuid();
                 $body_member = [
                     'Addresses' => $body['Addresses'],
                     'ContactFirstName' => $member->FirstName,
@@ -513,7 +478,7 @@ class Order extends DataExtension
             if ($member->Guid) {
                 $body['Customer']['Guid'] = $member->Guid;
 
-                $this->owner->extend('updateUnleashedSalesOrder', $body);
+                $this->getOwner()->extend('updateUnleashedSalesOrder', $body);
 
                 $response = UnleashedAPI::sendCall(
                     'POST',
@@ -521,8 +486,8 @@ class Order extends DataExtension
                     ['json' => $body]
                 );
                 if ($response->getReasonPhrase() == 'Created') {
-                    $this->owner->OrderSentToUnleashed = DBDatetime::now()->Rfc2822();
-                    $this->owner->write();
+                    $this->getOwner()->OrderSentToUnleashed = DBDatetime::now()->Rfc2822();
+                    $this->getOwner()->write();
                 }
             }
         }

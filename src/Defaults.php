@@ -1,6 +1,6 @@
 <?php
 
-namespace AntonyThorpe\SilvershopUnleashed;
+namespace AntonyThorpe\SilverShopUnleashed;
 
 use SilverStripe\Core\Config\Configurable;
 
@@ -14,71 +14,69 @@ class Defaults
 
     /**
      * Default CreatedBy
-     * @var string
+     * @config
      */
-    private static $created_by = '';
+    private static string $created_by = '';
 
     /**
      * Default Customer Type
-     * @var string
+     * @config
      */
-    private static $customer_type = '';
+    private static string $customer_type = '';
 
     /**
      * Days following payment that delivery is expected
-     * @var int
+     * @config
      */
-    private static $expected_days_to_deliver = 0;
+    private static int $expected_days_to_deliver = 0;
 
     /**
      * Default Order Status
-     * @var string
+     * @config
      */
-    private static $order_status = 'Parked';
+    private static string $order_status = 'Parked';
 
     /**
      * Default payment term
-     * @var string
+     * @config
      */
-    private static $payment_term = 'Same Day';
+    private static string $payment_term = 'Same Day';
 
     /**
      * Default PrintPackingSlipInsteadOfInvoice
-     * @var boolean
+     * @config
      */
-    private static $print_packingslip_instead_of_invoice = true;
+    private static bool $print_packingslip_instead_of_invoice = true;
 
     /**
      * Default Sales Order Group
-     * @var string
+     * @config
      */
-    private static $sales_order_group = '';
+    private static string $sales_order_group = '';
 
     /**
      * Enable sending of Sales Orders to Unleashed
-     * @var boolean
+     * @config
      */
-    private static $send_sales_orders_to_unleashed = false;
+    private static bool $send_sales_orders_to_unleashed = false;
 
     /**
      * Declare the Shipping modifier used in Silvershop
-     *
+     * @config
      * @example  'SilverShop\Model\Modifiers\Shipping\Simple'
-     * @var string
      */
-    private static $shipping_modifier_class_name = '';
+    private static string $shipping_modifier_class_name = '';
 
     /**
      * Default Source Id
-     * @var string
+     * @config
      */
-    private static $source_id = '';
+    private static string $source_id = '';
 
     /**
      * Declare the tax modifier used in Silvershop
-     *
+     * @config
      * @example  'SilverShop\Model\Modifiers\Tax\FlatTax'
-     * @var string
      */
-    private static $tax_modifier_class_name = '';
+    private static string $tax_modifier_class_name = '';
 }

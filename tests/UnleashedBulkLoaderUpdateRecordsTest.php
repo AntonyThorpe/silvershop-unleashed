@@ -17,8 +17,8 @@ class UnleashedBulkLoaderUpdateRecordsTest extends SapphireTest
         'fixtures/models.yml'
     ];
 
-    private $mp3player;
-    private $socks;
+    private object $mp3player;
+    private object $socks;
 
     public function setUp(): void
     {
@@ -30,24 +30,25 @@ class UnleashedBulkLoaderUpdateRecordsTest extends SapphireTest
         $this->socks = $this->objFromFixture(Product::class, 'socks');
 
         //publish some product categories and products
-        $this->objFromFixture(ProductCategory::class, 'products')->publish('Stage', 'Live');
-        $this->objFromFixture(ProductCategory::class, 'clothing')->publish('Stage', 'Live');
-        $this->objFromFixture(ProductCategory::class, 'clearance')->publish('Stage', 'Live');
-        $this->objFromFixture(ProductCategory::class, 'musicplayers')->publish('Stage', 'Live');
-        $this->objFromFixture(ProductCategory::class, 'electronics')->publish('Stage', 'Live');
-        $this->mp3player->publish('Stage', 'Live');
-        $this->socks->publish('Stage', 'Live');
+        $this->objFromFixture(ProductCategory::class, 'products')->copyVersionToStage('Stage', 'Live');
+        $this->objFromFixture(ProductCategory::class, 'clothing')->copyVersionToStage('Stage', 'Live');
+        $this->objFromFixture(ProductCategory::class, 'clearance')->copyVersionToStage('Stage', 'Live');
+        $this->objFromFixture(ProductCategory::class, 'musicplayers')->copyVersionToStage('Stage', 'Live');
+        $this->objFromFixture(ProductCategory::class, 'electronics')->copyVersionToStage('Stage', 'Live');
+        $this->mp3player->copyVersionToStage('Stage', 'Live');
+        $this->socks->copyVersionToStage('Stage', 'Live');
     }
 
-    public function testUpdate()
+    public function testUpdate(): void
     {
-        $apidata = json_decode($this->jsondata, true);
+        $apidata = (array) json_decode($this->jsondata, true);
         $apidata = reset($apidata);
-        $loader = ProductBulkLoader::create('SilverShop\Page\Product');
+        $loader = ProductBulkLoader::create(Product::class);
         $loader->transforms = [
             'Parent' => [
                 'callback' => function ($value, $placeholder) {
-                    if ($obj = ProductCategory::get()->find('Guid', $value)) {
+                    $obj = ProductCategory::get()->find('Guid', $value);
+                    if ($obj) {
                         return $obj;
                     } else {
                         return ProductCategory::get()->find('Title', $value);
@@ -58,10 +59,10 @@ class UnleashedBulkLoaderUpdateRecordsTest extends SapphireTest
         $results = $loader->updateRecords($apidata['Items']);
 
         // Check Results
-        $this->assertEquals($results->CreatedCount(), 0);
-        $this->assertEquals($results->UpdatedCount(), 2);
-        $this->assertEquals($results->DeletedCount(), 0);
-        $this->assertEquals($results->SkippedCount(), 0);
+        $this->assertEquals($results->CreatedCount(), 0, 'zero created');
+        $this->assertEquals($results->UpdatedCount(), 2, 'two updated');
+        $this->assertEquals($results->DeletedCount(), 0, 'zero deleted');
+        $this->assertEquals($results->SkippedCount(), 0, 'zero skipped');
         $this->assertEquals($results->Count(), 2);
 
         // Check Dataobjects
@@ -83,8 +84,8 @@ class UnleashedBulkLoaderUpdateRecordsTest extends SapphireTest
         );
 
         $this->assertEquals(
-            0,
-            (int) $mp3player->AllowPurchase,
+            false,
+            $mp3player->AllowPurchase,
             'AllowPurchase of the MP3 player set to false'
         );
 
@@ -94,18 +95,18 @@ class UnleashedBulkLoaderUpdateRecordsTest extends SapphireTest
             'Title is set to Socks Updated'
         );
         $this->assertSame(
-            1,
-            (int) $socks->Width,
+            1.0,
+            $socks->Width,
             'Width of socks updated to 1'
         );
         $this->assertSame(
-            2,
-            (int) $socks->Height,
+            2.0,
+            $socks->Height,
             'Height of socks updated to 2'
         );
         $this->assertSame(
-            3,
-            (int) $socks->Depth,
+            3.0,
+            $socks->Depth,
             'Depth of socks updated to 3'
         );
         $this->assertSame(

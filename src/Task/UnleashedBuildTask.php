@@ -2,8 +2,6 @@
 
 namespace AntonyThorpe\SilverShopUnleashed\Task;
 
-use GuzzleHttp\Exception\RequestException;
-use Psr\Http\Message\ResponseInterface;
 use SilverStripe\Control\Controller;
 use SilverStripe\Control\Director;
 use SilverStripe\Dev\BuildTask;
@@ -15,21 +13,14 @@ use SilverStripe\ORM\DB;
  */
 abstract class UnleashedBuildTask extends BuildTask
 {
-    /**
-     * @var string
-     */
-    protected $email_subject = "API Unleashed Software";
+    protected string $email_subject = "API Unleashed Software";
 
-    /**
-     * @var boolean
-     */
-    protected $preview = false;
+    protected bool $preview = false;
 
     /**
      * echo to screen for Build Reports
-     * @param  string $text the message to be printed
      */
-    protected function log($text)
+    protected function log(string $text): void
     {
         if (Controller::curr() instanceof DatabaseAdmin) {
             DB::alteration_message($text, 'obsolete');

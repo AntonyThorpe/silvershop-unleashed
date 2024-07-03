@@ -1,6 +1,6 @@
 <?php
 
-namespace AntonyThorpe\SilvershopUnleashed\Extension;
+namespace AntonyThorpe\SilverShopUnleashed\Extension;
 
 use AntonyThorpe\SilverShopUnleashed\Utils;
 use SilverStripe\ORM\DataExtension;
@@ -10,11 +10,11 @@ class OrderItem extends DataExtension
     /**
      * Apply Guid if absent
      */
-    public function onBeforeWrite()
+    public function onBeforeWrite(): void
     {
         parent::onBeforeWrite();
-        if (!$this->owner->getField("Guid")) {
-            $this->owner->Guid = (string) Utils::createGuid();
+        if (!$this->getOwner()->getField("Guid")) {
+            $this->getOwner()->Guid = Utils::createGuid();
         }
     }
 }

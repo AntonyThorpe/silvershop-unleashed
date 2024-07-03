@@ -1,6 +1,6 @@
 <?php
 
-namespace AntonyThorpe\SilvershopUnleashed\Extension;
+namespace AntonyThorpe\SilverShopUnleashed\Extension;
 
 use SilverStripe\Forms\FieldList;
 use SilverStripe\ORM\DataExtension;
@@ -10,11 +10,14 @@ use SilverStripe\ORM\DataExtension;
  */
 class UnleashedExtension extends DataExtension
 {
-    private static $db = [
+    /**
+     * @config
+     */
+    private static array $db = [
         'Guid' => 'Varchar(64)'
     ];
 
-    public function updateCMSFields(FieldList $fields)
+    public function updateCMSFields(FieldList $fields): void
     {
         $fields->removeByName('Guid');
     }

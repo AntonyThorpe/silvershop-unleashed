@@ -5,22 +5,22 @@ After:
 ---
 SilverStripe\Security\Member:
   extensions:
-    - AntonyThorpe\SilvershopUnleashed\Extension\UnleashedExtension
+    - AntonyThorpe\SilverShopUnleashed\Extension\UnleashedExtension
 SilverShop\Page\Product:
   extensions:
-    - AntonyThorpe\SilvershopUnleashed\Extension\UnleashedExtension
+    - AntonyThorpe\SilverShopUnleashed\Extension\UnleashedExtension
 SilverShop\Page\ProductCategory:
   extensions:
-    - AntonyThorpe\SilvershopUnleashed\Extension\UnleashedExtension
+    - AntonyThorpe\SilverShopUnleashed\Extension\UnleashedExtension
 SilverShop\Model\Order:
   extensions:
-    - AntonyThorpe\SilvershopUnleashed\Extension\UnleashedExtension
-    - AntonyThorpe\SilvershopUnleashed\Extension\Order
+    - AntonyThorpe\SilverShopUnleashed\Extension\UnleashedExtension
+    - AntonyThorpe\SilverShopUnleashed\Extension\Order
 SilverShop\Model\OrderItem:
   extensions:
-    - AntonyThorpe\SilvershopUnleashed\Extension\UnleashedExtension
-    - AntonyThorpe\SilvershopUnleashed\Extension\OrderItem
+    - AntonyThorpe\SilverShopUnleashed\Extension\UnleashedExtension
+    - AntonyThorpe\SilverShopUnleashed\Extension\OrderItem
 SilverShop\Model\Modifiers\OrderModifier:
   extensions:
-    - AntonyThorpe\SilvershopUnleashed\Extension\UnleashedExtension
-    - AntonyThorpe\SilvershopUnleashed\Extension\OrderModifier
+    - AntonyThorpe\SilverShopUnleashed\Extension\UnleashedExtension
+    - AntonyThorpe\SilverShopUnleashed\Extension\OrderModifier

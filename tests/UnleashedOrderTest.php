@@ -2,6 +2,7 @@
 
 namespace AntonyThorpe\SilverShopUnleashed\Tests;
 
+use SilverShop\Shipping\ShippingFrameworkModifier;
 use AntonyThorpe\SilverShopUnleashed\BulkLoader\OrderBulkLoader;
 use AntonyThorpe\SilverShopUnleashed\Defaults;
 use SilverShop\Cart\ShoppingCart;
@@ -30,8 +31,8 @@ class UnleashedOrderTest extends SapphireTest
     public function setUp(): void
     {
         Defaults::config()->send_sales_orders_to_unleashed = false;
-        Defaults::config()->tax_modifier_class_name = 'SilverShop\Model\Modifiers\Tax\FlatTax';
-        Defaults::config()->shipping_modifier_class_name = 'SilverShop\Model\Modifiers\Shipping\Simple';
+        Defaults::config()->tax_modifier_class_name = FlatTax::class;
+        Defaults::config()->shipping_modifier_class_name = Simple::class;
         parent::setUp();
         ShoppingCart::singleton()->clear();
         ShopTest::setConfiguration(); //reset config
@@ -46,7 +47,7 @@ class UnleashedOrderTest extends SapphireTest
             ->merge(Order::class, 'modifiers', [Simple::class, FlatTax::class]);
     }
 
-    protected $order_status_map = [
+    protected array $order_status_map = [
         'Open' => 'Unpaid',
         'Parked' => 'Paid',
         'Backordered' => 'Processing',
@@ -59,22 +60,21 @@ class UnleashedOrderTest extends SapphireTest
         'Deleted' => 'MemberCancelled'
     ];
 
-    public function testChangeOrderStatus()
+    public function testChangeOrderStatus(): void
     {
-        $apidata_array = json_decode($this->jsondata, true);
+        $apidata_array = (array) json_decode($this->jsondata, true);
         $apidata_array = reset($apidata_array);
-        $apidata = $apidata_array['Items'];
+        $items = $apidata_array['Items'];
 
-        $loader = OrderBulkLoader::create('SilverShop\Model\Order');
+        $loader = OrderBulkLoader::create(Order::class);
         $loader->transforms = [
             'Status' => [
-                'callback' => function ($value, &$placeholder) {
+                'callback' => fn($value, &$placeholder) =>
                     // convert from Unleashed Sales Order status to Silvershop
-                    return $this->order_status_map[$value];
-                }
+                    $this->order_status_map[$value]
             ]
         ];
-        $results = $loader->updateRecords($apidata);
+        $results = $loader->updateRecords($items);
 
         // Check Results
         $this->assertEquals($results->CreatedCount(), 0);
@@ -99,7 +99,7 @@ class UnleashedOrderTest extends SapphireTest
         );
     }
 
-    public function testSetBodyAddress()
+    public function testSetBodyAddress(): void
     {
         $body = [
             'Addresses' => []
@@ -136,7 +136,7 @@ class UnleashedOrderTest extends SapphireTest
         );
     }
 
-    public function testSetBodyCurrencyCode()
+    public function testSetBodyCurrencyCode(): void
     {
         $body = [
             'Currency' => []
@@ -152,7 +152,7 @@ class UnleashedOrderTest extends SapphireTest
         );
     }
 
-    public function testSetBodyCustomerCodeAndName()
+    public function testSetBodyCustomerCodeAndName(): void
     {
         $body = [];
         $order = $this->objFromFixture(Order::class, "payablecart");
@@ -175,7 +175,7 @@ class UnleashedOrderTest extends SapphireTest
         );
     }
 
-    public function testSetBodySalesOrderLines()
+    public function testSetBodySalesOrderLines(): void
     {
         $order = $this->objFromFixture(Order::class, "paid1");
         OrderProcessor::create($order)->placeOrder();
@@ -187,10 +187,10 @@ class UnleashedOrderTest extends SapphireTest
                 ]
             ],
             $order,
-            'SilverShop\Model\Modifiers\Tax\FlatTax',
+            FlatTax::class,
             2
         );
-        $result = json_encode($body);
+        $result = (string) json_encode($body, JSON_HEX_QUOT | JSON_HEX_TAG);
         $this->assertStringContainsString(
             'SalesOrderLines',
             $result,
@@ -209,7 +209,7 @@ class UnleashedOrderTest extends SapphireTest
         );
     }
 
-    public function testSetBodySalesOrderLinesWithModifiers()
+    public function testSetBodySalesOrderLinesWithModifiers(): void
     {
         $urntap = $this->objFromFixture(Product::class, 'urntap');
         $urntap->publishSingle();
@@ -231,7 +231,7 @@ class UnleashedOrderTest extends SapphireTest
                 ]
             ],
             $order,
-            'SilverShop\Model\Modifiers\Tax\FlatTax',
+            FlatTax::class,
             2
         );
         $freight_modifier = $body['SalesOrderLines'][1];
@@ -249,7 +249,7 @@ class UnleashedOrderTest extends SapphireTest
         );
     }
 
-    public function testSetBodySubTotalAndTax()
+    public function testSetBodySubTotalAndTax(): void
     {
         $urntap = $this->objFromFixture(Product::class, 'urntap');
         $urntap->publishSingle();
@@ -262,18 +262,18 @@ class UnleashedOrderTest extends SapphireTest
         $body = $order->setBodyTaxCode(
             [],
             $order,
-            'SilverShop\Model\Modifiers\Tax\FlatTax'
+            FlatTax::class
         );
         $body = $order->setBodySalesOrderLines(
             $body,
             $order,
-            'SilverShop\Model\Modifiers\Tax\FlatTax',
+            FlatTax::class,
             2
         );
         $body = $order->setBodySubTotalAndTax(
             $body,
             $order,
-            'SilverShop\Model\Modifiers\Tax\FlatTax',
+            FlatTax::class,
             2
         );
 
@@ -293,11 +293,11 @@ class UnleashedOrderTest extends SapphireTest
         );
     }
 
-    public function testTaxRounding()
+    public function testTaxRounding(): void
     {
         $filter = $this->objFromFixture(Product::class, 'filter');
         $filter->publishSingle();
-        $tax_modifier_class_name = 'SilverShop\Model\Modifiers\Tax\FlatTax';
+        $tax_modifier_class_name = FlatTax::class;
         $cart = ShoppingCart::singleton();
         $cart->clear();
         $cart->add($filter);
@@ -343,7 +343,7 @@ class UnleashedOrderTest extends SapphireTest
         );
     }
 
-    public function testTaxRounding2()
+    public function testTaxRounding2(): void
     {
         ShopTest::setConfiguration(); //reset config
         $this->logInWithPermission('ADMIN');
@@ -357,7 +357,7 @@ class UnleashedOrderTest extends SapphireTest
             ->merge(Order::class, 'modifiers', [Simple::class, FlatTax::class]);
         $boiler = $this->objFromFixture(Product::class, 'boiler');
         $boiler->publishSingle();
-        $tax_modifier_class_name = 'SilverShop\Model\Modifiers\Tax\FlatTax';
+        $tax_modifier_class_name = FlatTax::class;
         $cart = ShoppingCart::singleton();
         $cart->clear();
         $cart->add($boiler);
@@ -405,14 +405,14 @@ class UnleashedOrderTest extends SapphireTest
     }
 
 
-    public function testSetBodyDeliveryMethodAndDeliveryName()
+    public function testSetBodyDeliveryMethodAndDeliveryName(): void
     {
-        Defaults::config()->shipping_modifier_class_name = 'SilverShop\Shipping\ShippingFrameworkModifier';
-        Config::modify()->set('SilverShop\Shipping\ShippingFrameworkModifier', 'product_code', 'Freight');
+        Defaults::config()->set('shipping_modifier_class_name', ShippingFrameworkModifier::class);
+        Config::modify()->set(ShippingFrameworkModifier::class, 'product_code', 'Freight');
         $body = [];
         $defaults = Defaults::config();
         $order = $this->objFromFixture(Order::class, "payablecart");
-        $body = $order->setBodyDeliveryMethodAndDeliveryName($body, $order, $defaults->shipping_modifier_class_name);
+        $body = $order->setBodyDeliveryMethodAndDeliveryName($body, $order, $defaults->get('shipping_modifier_class_name'));
         $result = implode('|', array_values($body));
         $this->assertSame(
             $result,
