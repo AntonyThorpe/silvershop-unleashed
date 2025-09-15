@@ -2,10 +2,14 @@
 
 namespace AntonyThorpe\SilverShopUnleashed\Extension;
 
+use SilverShop\Model\Modifiers\OrderModifier;
+use SilverStripe\Core\Extension;
 use AntonyThorpe\SilverShopUnleashed\Utils;
-use SilverStripe\ORM\DataExtension;
 
-class OrderModifier extends DataExtension
+/**
+ * @extends Extension<OrderModifier&static>
+ */
+class OrderModifierExtension extends Extension
 {
     /**
      * Map OrderModifier
@@ -18,7 +22,6 @@ class OrderModifier extends DataExtension
      */
     public function onBeforeWrite(): void
     {
-        parent::onBeforeWrite();
         if (!$this->getOwner()->getField('Guid')) {
             $this->getOwner()->Guid = Utils::createGuid();
         }

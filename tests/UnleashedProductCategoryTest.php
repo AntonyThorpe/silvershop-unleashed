@@ -4,12 +4,10 @@ namespace AntonyThorpe\SilverShopUnleashed\Tests;
 
 use AntonyThorpe\SilverShopUnleashed\BulkLoader\ProductCategoryBulkLoader;
 use AntonyThorpe\SilverShopUnleashed\Defaults;
-use SilverShop\Model\Order;
 use SilverShop\Page\ProductCategory;
 use SilverShop\Tests\ShopTest;
 use SilverStripe\Core\Convert;
 use SilverStripe\Dev\SapphireTest;
-use SilverStripe\Security\Member;
 
 class UnleashedProductCategoryTest extends SapphireTest
 {
@@ -18,9 +16,9 @@ class UnleashedProductCategoryTest extends SapphireTest
         'fixtures/models.yml'
     ];
 
-    public function setUp(): void
+    protected function setUp(): void
     {
-        Defaults::config()->send_sales_orders_to_unleashed = false;
+        Defaults::config()->set('send_sales_orders_to_unleashed', false);
         parent::setUp();
         ShopTest::setConfiguration(); //reset config
 
@@ -39,8 +37,8 @@ class UnleashedProductCategoryTest extends SapphireTest
         $apidata = reset($apidata);
 
         // Test the setting of a Guid
-        $loader = ProductCategoryBulkLoader::create(ProductCategory::class);
-        $loader->transforms = [
+        $productCategoryBulkLoader = ProductCategoryBulkLoader::create(ProductCategory::class);
+        $productCategoryBulkLoader->transforms = [
             'Title' => [
                 'callback' => function ($value, &$placeholder) {
                     $placeholder->URLSegment = Convert::raw2url($value);
@@ -48,14 +46,14 @@ class UnleashedProductCategoryTest extends SapphireTest
                 }
             ]
         ];
-        $results = $loader->updateRecords($apidata['Items']);
+        $bulkLoaderResult = $productCategoryBulkLoader->updateRecords($apidata['Items']);
 
         // Check Results
-        $this->assertEquals($results->CreatedCount(), 0);
-        $this->assertEquals($results->UpdatedCount(), 2);
-        $this->assertEquals($results->DeletedCount(), 0);
-        $this->assertEquals($results->SkippedCount(), 3);
-        $this->assertEquals($results->Count(), 2);
+        $this->assertEquals(0, $bulkLoaderResult->CreatedCount());
+        $this->assertEquals(2, $bulkLoaderResult->UpdatedCount());
+        $this->assertEquals(0, $bulkLoaderResult->DeletedCount());
+        $this->assertEquals(3, $bulkLoaderResult->SkippedCount());
+        $this->assertCount(2, $bulkLoaderResult);
 
         // Check Dataobjects
         $newguy = ProductCategory::get()->find('Title', 'New Guy');
@@ -77,14 +75,14 @@ class UnleashedProductCategoryTest extends SapphireTest
             'Electroncis has a new URLSegment of "electroncis-adjusted-title"'
         );
 
-        $results_absent = $loader->clearAbsentRecords($apidata['Items'], 'Guid', 'Guid');
+        $results_absent = $productCategoryBulkLoader->clearAbsentRecords($apidata['Items'], 'Guid', 'Guid');
 
         // Check Results
-        $this->assertEquals($results_absent->CreatedCount(), 0);
-        $this->assertEquals($results_absent->UpdatedCount(), 1);
-        $this->assertEquals($results_absent->DeletedCount(), 0);
-        $this->assertEquals($results_absent->SkippedCount(), 0);
-        $this->assertEquals($results_absent->Count(), 1);
+        $this->assertEquals(0, $results_absent->CreatedCount());
+        $this->assertEquals(1, $results_absent->UpdatedCount());
+        $this->assertEquals(0, $results_absent->DeletedCount());
+        $this->assertEquals(0, $results_absent->SkippedCount());
+        $this->assertCount(1, $results_absent);
 
         $clearance = ProductCategory::get()->find('Title', 'Clearance');
         $this->assertNull(
@@ -96,8 +94,7 @@ class UnleashedProductCategoryTest extends SapphireTest
 
     /**
      * JSON data for test
-     *
-     * @link (Unleashed Software API Documentation, https://apidocs.unleashedsoftware.com/Products)
+     * UnleashedProductCategoryTest.php @link https://apidocs.unleashedsoftware.com/Products
      * @var string
      */
     protected $jsondata = '[

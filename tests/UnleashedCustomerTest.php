@@ -10,15 +10,16 @@ use SilverStripe\Dev\SapphireTest;
 class UnleashedCustomerTest extends SapphireTest
 {
     public Order $order;
+
     protected static $fixture_file = [
         'vendor/silvershop/core/tests/php/Fixtures/ShopMembers.yml',
         'vendor/silvershop/core/tests/php/Fixtures/Orders.yml',
         'fixtures/models.yml'
     ];
 
-    public function setUp(): void
+    protected function setUp(): void
     {
-        Defaults::config()->send_sales_orders_to_unleashed = false;
+        Defaults::config()->set('send_sales_orders_to_unleashed', false);
         parent::setUp();
         ShopTest::setConfiguration(); //reset config
         $this->order = $this->objFromFixture(Order::class, "cart1");
@@ -37,6 +38,7 @@ class UnleashedCustomerTest extends SapphireTest
     {
         $apidata_array = (array) json_decode($this->jsondata, true);
         $apidata_array = reset($apidata_array);
+
         $items = $apidata_array['Items'];
 
         $this->assertSame(
@@ -50,6 +52,7 @@ class UnleashedCustomerTest extends SapphireTest
     {
         $apidata_array = (array) json_decode($this->jsondata, true);
         $apidata_array = reset($apidata_array);
+
         $items = $apidata_array['Items'];
 
         // Test a failed match
@@ -59,21 +62,20 @@ class UnleashedCustomerTest extends SapphireTest
         );
 
         // Test a direct match
-        $shipping_address = $this->order->ShippingAddress();
-        $shipping_address->Address = '31 Hurstmere Road';
-        $shipping_address->AddressLine2 = 'RD1';
-        $shipping_address->City = 'Auckland';
+        $address = $this->order->ShippingAddress();
+        $address->Address = '31 Hurstmere Road';
+        $address->AddressLine2 = 'RD1';
+        $address->City = 'Auckland';
 
         $this->assertTrue(
-            $this->order->matchCustomerAddress($items, $shipping_address),
+            $this->order->matchCustomerAddress($items, $address),
             "The address in the API data matches the order's shipping address"
         );
     }
 
     /**
      * JSON data for test
-     *
-     * @link (Unleashed Software API Documentation, https://apidocs.unleashedsoftware.com/Products)
+     * Unleashed Software API Documentation @link https://apidocs.unleashedsoftware.com/Products
      * @var string
      */
     protected $jsondata = '[

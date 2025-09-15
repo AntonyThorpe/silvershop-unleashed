@@ -4,7 +4,6 @@ namespace AntonyThorpe\SilverShopUnleashed\Tests;
 
 use AntonyThorpe\SilverShopUnleashed\BulkLoader\ProductBulkLoader;
 use AntonyThorpe\SilverShopUnleashed\Defaults;
-use SilverShop\Model\Order;
 use SilverShop\Page\Product;
 use SilverShop\Page\ProductCategory;
 use SilverShop\Tests\ShopTest;
@@ -17,17 +16,15 @@ class UnleashedBulkLoaderUpdateRecordsTest extends SapphireTest
         'fixtures/models.yml'
     ];
 
-    private object $mp3player;
-    private object $socks;
 
-    public function setUp(): void
+    protected function setUp(): void
     {
-        Defaults::config()->send_sales_orders_to_unleashed = false;
+        Defaults::config()->set('send_sales_orders_to_unleashed', false);
         parent::setUp();
         ShopTest::setConfiguration(); //reset config
 
-        $this->mp3player = $this->objFromFixture(Product::class, 'mp3player');
-        $this->socks = $this->objFromFixture(Product::class, 'socks');
+        $product = $this->objFromFixture(Product::class, 'mp3player');
+        $socks = $this->objFromFixture(Product::class, 'socks');
 
         //publish some product categories and products
         $this->objFromFixture(ProductCategory::class, 'products')->copyVersionToStage('Stage', 'Live');
@@ -35,41 +32,43 @@ class UnleashedBulkLoaderUpdateRecordsTest extends SapphireTest
         $this->objFromFixture(ProductCategory::class, 'clearance')->copyVersionToStage('Stage', 'Live');
         $this->objFromFixture(ProductCategory::class, 'musicplayers')->copyVersionToStage('Stage', 'Live');
         $this->objFromFixture(ProductCategory::class, 'electronics')->copyVersionToStage('Stage', 'Live');
-        $this->mp3player->copyVersionToStage('Stage', 'Live');
-        $this->socks->copyVersionToStage('Stage', 'Live');
+        $product->copyVersionToStage('Stage', 'Live');
+        $socks->copyVersionToStage('Stage', 'Live');
     }
 
     public function testUpdate(): void
     {
         $apidata = (array) json_decode($this->jsondata, true);
         $apidata = reset($apidata);
-        $loader = ProductBulkLoader::create(Product::class);
-        $loader->transforms = [
+
+        $productBulkLoader = ProductBulkLoader::create(Product::class);
+        $productBulkLoader->transforms = [
             'Parent' => [
                 'callback' => function ($value, $placeholder) {
                     $obj = ProductCategory::get()->find('Guid', $value);
                     if ($obj) {
                         return $obj;
-                    } else {
-                        return ProductCategory::get()->find('Title', $value);
                     }
+
+                    return ProductCategory::get()->find('Title', $value);
                 }
             ]
         ];
-        $results = $loader->updateRecords($apidata['Items']);
+        $bulkLoaderResult = $productBulkLoader->updateRecords($apidata['Items']);
 
         // Check Results
-        $this->assertEquals($results->CreatedCount(), 0, 'zero created');
-        $this->assertEquals($results->UpdatedCount(), 2, 'two updated');
-        $this->assertEquals($results->DeletedCount(), 0, 'zero deleted');
-        $this->assertEquals($results->SkippedCount(), 0, 'zero skipped');
-        $this->assertEquals($results->Count(), 2);
+        $this->assertEquals(0, $bulkLoaderResult->CreatedCount(), 'zero created');
+        $this->assertEquals(2, $bulkLoaderResult->UpdatedCount(), 'two updated');
+        $this->assertEquals(0, $bulkLoaderResult->DeletedCount(), 'zero deleted');
+        $this->assertEquals(0, $bulkLoaderResult->SkippedCount(), 'zero skipped');
+        $this->assertCount(2, $bulkLoaderResult);
 
         // Check Dataobjects
         $product_category_clothing = ProductCategory::get()->find('Title', 'Clothing');
         $product_category_electronics = ProductCategory::get()->find('Title', 'Electronics');
         $socks = Product::get()->find('InternalItemID', 'IIID1');
         $mp3player = Product::get()->find('InternalItemID', 'IIID5');
+        $this->assertInstanceOf(Product::class, $socks);
 
         // Check Parent
         $this->assertSame(
@@ -77,6 +76,7 @@ class UnleashedBulkLoaderUpdateRecordsTest extends SapphireTest
             $socks->Parent()->Title,
             'Socks should have a parent page with title of Clothing'
         );
+        $this->assertInstanceOf(Product::class, $mp3player);
         $this->assertSame(
             $product_category_electronics->Title,
             $mp3player->Parent()->Title,
@@ -94,33 +94,16 @@ class UnleashedBulkLoaderUpdateRecordsTest extends SapphireTest
             $socks->Title,
             'Title is set to Socks Updated'
         );
-        $this->assertSame(
-            1.0,
-            $socks->Width,
-            'Width of socks updated to 1'
-        );
-        $this->assertSame(
-            2.0,
-            $socks->Height,
-            'Height of socks updated to 2'
-        );
-        $this->assertSame(
-            3.0,
-            $socks->Depth,
-            'Depth of socks updated to 3'
-        );
-        $this->assertSame(
-            8.50,
-            $socks->getPrice(),
-            'Socks BasePrice updated to 8.50'
-        );
+        $this->assertEqualsWithDelta(1.0, $socks->Width, PHP_FLOAT_EPSILON, 'Width of socks updated to 1');
+        $this->assertEqualsWithDelta(2.0, $socks->Height, PHP_FLOAT_EPSILON, 'Height of socks updated to 2');
+        $this->assertEqualsWithDelta(3.0, $socks->Depth, PHP_FLOAT_EPSILON, 'Depth of socks updated to 3');
+        $this->assertEqualsWithDelta(8.50, $socks->getPrice(), PHP_FLOAT_EPSILON, 'Socks BasePrice updated to 8.50');
     }
 
 
     /**
      * JSON data for test
-     *
-     * @link (Unleashed Software API Documentation, https://apidocs.unleashedsoftware.com/Products)
+     * Unleashed Software API Documentation @link https://apidocs.unleashedsoftware.com/Products
      * @var string
      */
     protected $jsondata = '[

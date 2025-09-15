@@ -8,7 +8,6 @@ use AntonyThorpe\SilverShopUnleashed\BulkLoader\OrderBulkLoader;
 use AntonyThorpe\SilverShopUnleashed\Defaults;
 use AntonyThorpe\SilverShopUnleashed\Task\UnleashedBuildTask;
 use AntonyThorpe\SilverShopUnleashed\UnleashedAPI;
-use DateTime;
 use SilverShop\Extension\ShopConfigExtension;
 use SilverStripe\Control\Email\Email;
 use SilverStripe\Dev\Debug;
@@ -39,20 +38,23 @@ abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
         'Picked' => 'Processing',
         'Packed' => 'Processing',
         'Dispatched' => 'Sent',
-        'Complete' => 'Complete',
+        'Completed' => 'Completed',
         'Deleted' => 'MemberCancelled'
     ];
 
-    public function run($request)
+    public function run($request): void
     {
         // Definitions
-        $default_source_id = Defaults::config()->source_id;
+        $default_source_id = Defaults::config()->get('source_id');
         $query = [];
         $consumer = Consumer::get()->find('Title', 'OrderUpdate');  // to get modifiedSince
 
         if ($consumer) {
-            $date = new DateTime($consumer->ExternalLastEdited);
-            $query['modifiedSince'] = substr($date->format('Y-m-d\TH:i:s.u'), 0, 23);
+            $query['modifiedSince'] = substr(
+                $consumer->dbObject('ExternalLastEdited')->format('Y-m-d\TH:i:s.u'),
+                0,
+                23
+            );
         }
 
         if ($default_source_id) {
@@ -66,7 +68,7 @@ abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
         );
 
         if ($response->getStatusCode() == 200) {
-            $apidata_array = (array) json_decode($response->getBody(), true);
+            $apidata_array = (array) json_decode((string) $response->getBody(), true);
             $apidata = $apidata_array['Items'];
             $pagination = $apidata_array['Pagination'];
             $numberofpages = intval($pagination['NumberOfPages']);
@@ -79,7 +81,7 @@ abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
                         ['query' => $query]
                     );
                     if ($response->getStatusCode() == 200) {
-                        $apidata_array = (array) json_decode($response->getBody(), true);
+                        $apidata_array = (array) json_decode((string) $response->getBody(), true);
                         $apidata = array_merge($apidata, $apidata_array['Items']);
                     }
                 }
@@ -99,14 +101,15 @@ abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
             if ($results->UpdatedCount()) {
                 $this->log(Debug::text($results->getData()));
             }
+
             $this->log("Done");
 
             // Send email
-            if ($results->Count() && $this->email_subject && !$this->preview && Email::config()->admin_email) {
+            if ($results->Count() && $this->email_subject && !$this->preview && Email::config()->get('admin_email')) {
                 $data = $results->getData();
                 $email = Email::create(
-                    ShopConfigExtension::config()->email_from ?: Email::config()->admin_email,
-                    Email::config()->admin_email,
+                    ShopConfigExtension::config()->get('email_from') ?: Email::config()->get('admin_email'),
+                    Email::config()->get('admin_email'),
                     $this->email_subject,
                     Debug::text($data)
                 );
@@ -132,6 +135,7 @@ abstract class UnleashedUpdateOrderTask extends UnleashedBuildTask
                         'ExternalLastEditedKey' => 'LastModifiedOn'
                     ]);
                 }
+
                 $consumer->setMaxExternalLastEdited($apidata);
                 $consumer->write();
             }

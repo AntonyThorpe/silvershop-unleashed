@@ -15,12 +15,12 @@ SilverShop\Page\ProductCategory:
 SilverShop\Model\Order:
   extensions:
     - AntonyThorpe\SilverShopUnleashed\Extension\UnleashedExtension
-    - AntonyThorpe\SilverShopUnleashed\Extension\Order
+    - AntonyThorpe\SilverShopUnleashed\Extension\OrderExtension
 SilverShop\Model\OrderItem:
   extensions:
     - AntonyThorpe\SilverShopUnleashed\Extension\UnleashedExtension
-    - AntonyThorpe\SilverShopUnleashed\Extension\OrderItem
+    - AntonyThorpe\SilverShopUnleashed\Extension\OrderItemExtension
 SilverShop\Model\Modifiers\OrderModifier:
   extensions:
     - AntonyThorpe\SilverShopUnleashed\Extension\UnleashedExtension
-    - AntonyThorpe\SilverShopUnleashed\Extension\OrderModifier
+    - AntonyThorpe\SilverShopUnleashed\Extension\OrderModifierExtension

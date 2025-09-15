@@ -7,13 +7,10 @@ use AntonyThorpe\SilverShopUnleashed\BulkLoader\OrderBulkLoader;
 use AntonyThorpe\SilverShopUnleashed\Defaults;
 use SilverShop\Cart\ShoppingCart;
 use SilverShop\Checkout\OrderProcessor;
-use SilverShop\Model\Modifiers\OrderModifier;
 use SilverShop\Model\Modifiers\Shipping\Simple;
 use SilverShop\Model\Modifiers\Tax\FlatTax;
 use SilverShop\Model\Order;
-use SilverShop\Model\Product\OrderItem;
 use SilverShop\Page\Product;
-use SilverShop\Shipping\Model\DistanceShippingMethod;
 use SilverShop\Tests\ShopTest;
 use SilverStripe\Core\Config\Config;
 use SilverStripe\Dev\SapphireTest;
@@ -28,11 +25,11 @@ class UnleashedOrderTest extends SapphireTest
         'fixtures/models.yml'
     ];
 
-    public function setUp(): void
+    protected function setUp(): void
     {
-        Defaults::config()->send_sales_orders_to_unleashed = false;
-        Defaults::config()->tax_modifier_class_name = FlatTax::class;
-        Defaults::config()->shipping_modifier_class_name = Simple::class;
+        Defaults::config()->set('send_sales_orders_to_unleashed', false);
+        Defaults::config()->set('tax_modifier_class_name', FlatTax::class);
+        Defaults::config()->set('shipping_modifier_class_name', Simple::class);
         parent::setUp();
         ShoppingCart::singleton()->clear();
         ShopTest::setConfiguration(); //reset config
@@ -64,24 +61,25 @@ class UnleashedOrderTest extends SapphireTest
     {
         $apidata_array = (array) json_decode($this->jsondata, true);
         $apidata_array = reset($apidata_array);
+
         $items = $apidata_array['Items'];
 
-        $loader = OrderBulkLoader::create(Order::class);
-        $loader->transforms = [
+        $orderBulkLoader = OrderBulkLoader::create(Order::class);
+        $orderBulkLoader->transforms = [
             'Status' => [
                 'callback' => fn($value, &$placeholder) =>
                     // convert from Unleashed Sales Order status to Silvershop
                     $this->order_status_map[$value]
             ]
         ];
-        $results = $loader->updateRecords($items);
+        $bulkLoaderResult = $orderBulkLoader->updateRecords($items);
 
         // Check Results
-        $this->assertEquals($results->CreatedCount(), 0);
-        $this->assertEquals($results->UpdatedCount(), 2);
-        $this->assertEquals($results->DeletedCount(), 0);
-        $this->assertEquals($results->SkippedCount(), 0);
-        $this->assertEquals($results->Count(), 2);
+        $this->assertEquals(0, $bulkLoaderResult->CreatedCount());
+        $this->assertEquals(2, $bulkLoaderResult->UpdatedCount());
+        $this->assertEquals(0, $bulkLoaderResult->DeletedCount());
+        $this->assertEquals(0, $bulkLoaderResult->SkippedCount());
+        $this->assertCount(2, $bulkLoaderResult);
 
         // Check Dataobjects
         $order1 = Order::get()->find('Reference', 'O1');
@@ -109,29 +107,29 @@ class UnleashedOrderTest extends SapphireTest
         $body = $order->setBodyAddress($body, $order, 'Postal');
         $result = implode('|', array_values($body['Addresses'][0]));
         $this->assertSame(
-            $result,
             '12 Foo Street Bar Farmville|Postal|Farmville|United States||New Sandwich|12 Foo Street|Bar',
+            $result,
             'Postal Address added to $body["Address"]'
         );
 
         $body = $order->setBodyAddress($body, $order, 'Physical');
         $result = implode('|', array_values($body['Addresses'][1]));
         $this->assertSame(
-            $result,
             '12 Foo Street Bar Farmville|Physical|Farmville|United States||New Sandwich|12 Foo Street|Bar',
+            $result,
             'Physical Address added to $body["Address"]'
         );
         $result = implode('|', array_values($body['Addresses'][2]));
         $this->assertSame(
-            $result,
             '12 Foo Street Bar Farmville|Shipping|Farmville|United States||New Sandwich|12 Foo Street|Bar',
+            $result,
             'Shipping Address added to $body["Address"]'
         );
 
         $result = $body['DeliveryCity'] . '|' . $body['DeliveryCountry'] . '|' . $body['DeliveryPostCode'] . '|' . $body['DeliveryRegion'] . '|' . $body['DeliveryStreetAddress'] . '|' . $body['DeliveryStreetAddress2'];
         $this->assertSame(
-            $result,
             'Farmville|United States||New Sandwich|12 Foo Street|Bar',
+            $result,
             'Delivery Address added to $body'
         );
     }
@@ -160,8 +158,8 @@ class UnleashedOrderTest extends SapphireTest
         $body = $order->setBodyCustomerCodeAndName($body, $order);
         $result = implode('|', array_values($body));
         $this->assertSame(
-            $result,
             'Payable Smith|Payable Smith',
+            $result,
             'Set BodyCustomerCodeAndName'
         );
 
@@ -169,8 +167,8 @@ class UnleashedOrderTest extends SapphireTest
         $body = $order->setBodyCustomerCodeAndName($body, $order);
         $result = implode('|', array_values($body));
         $this->assertSame(
-            $result,
             'Test Company|Test Company',
+            $result,
             'Set BodyCustomerCodeAndName with Company name'
         );
     }
@@ -211,17 +209,19 @@ class UnleashedOrderTest extends SapphireTest
 
     public function testSetBodySalesOrderLinesWithModifiers(): void
     {
-        $urntap = $this->objFromFixture(Product::class, 'urntap');
-        $urntap->publishSingle();
-        $cart = ShoppingCart::singleton();
-        $cart->clear();
-        $cart->add($urntap);
-        $order = $cart->current();
+        $product = $this->objFromFixture(Product::class, 'urntap');
+        $product->publishSingle();
+
+        $shoppingCart = ShoppingCart::singleton();
+        $shoppingCart->clear();
+        $shoppingCart->add($product);
+
+        $order = $shoppingCart->current();
         $order->calculate();
 
-        $this->assertEquals(
+        $this->assertCount(
             2,
-            $order->Modifiers()->count(),
+            $order->Modifiers(),
             'Shipping & Tax Modifiers in order'
         );
         $body = $order->setBodySalesOrderLines(
@@ -238,25 +238,27 @@ class UnleashedOrderTest extends SapphireTest
         $result = $freight_modifier['DiscountRate'] . '|' . $freight_modifier['LineNumber'] . '|' . $freight_modifier['LineTotal'] . '|' . $freight_modifier['LineType'] . '|' . $freight_modifier['OrderQuantity'] . '|' . $freight_modifier['UnitPrice'] . '|' . $freight_modifier['LineTax'] . '|' . $freight_modifier['LineTaxCode'];
 
         $this->assertSame(
-            $result,
             '0|2|8.95||1|8.95|1.34|OUTPUT2',
+            $result,
             'Modifiers in the SalesOrderLines added to $body'
         );
         $this->assertSame(
-            $freight_modifier['Product']['ProductCode'],
             'Freight',
+            $freight_modifier['Product']['ProductCode'],
             'ProductCode of the Freight Modifier in $body is "Freight"'
         );
     }
 
     public function testSetBodySubTotalAndTax(): void
     {
-        $urntap = $this->objFromFixture(Product::class, 'urntap');
-        $urntap->publishSingle();
-        $cart = ShoppingCart::singleton();
-        $cart->clear();
-        $cart->add($urntap);
-        $order = $cart->current();
+        $product = $this->objFromFixture(Product::class, 'urntap');
+        $product->publishSingle();
+
+        $shoppingCart = ShoppingCart::singleton();
+        $shoppingCart->clear();
+        $shoppingCart->add($product);
+
+        $order = $shoppingCart->current();
         $order->calculate();
 
         $body = $order->setBodyTaxCode(
@@ -281,27 +283,21 @@ class UnleashedOrderTest extends SapphireTest
             $body['Taxable'],
             'Taxable is set to true'
         );
-        $this->assertEquals(
-            $body['TaxTotal'],
-            11.19,
-            'TaxTotal is set to $11.19 ((65.65 + 8.95) * .15) in $body'
-        );
-        $this->assertEquals(
-            $body['SubTotal'],
-            74.60,
-            'SubTotal is set to $74.60 (65.65 + 8.95) in $body'
-        );
+        $this->assertEqualsWithDelta(11.19, $body['TaxTotal'], PHP_FLOAT_EPSILON, 'TaxTotal is set to $11.19 ((65.65 + 8.95) * .15) in $body');
+        $this->assertEqualsWithDelta(74.60, $body['SubTotal'], PHP_FLOAT_EPSILON, 'SubTotal is set to $74.60 (65.65 + 8.95) in $body');
     }
 
     public function testTaxRounding(): void
     {
-        $filter = $this->objFromFixture(Product::class, 'filter');
-        $filter->publishSingle();
+        $product = $this->objFromFixture(Product::class, 'filter');
+        $product->publishSingle();
+
         $tax_modifier_class_name = FlatTax::class;
-        $cart = ShoppingCart::singleton();
-        $cart->clear();
-        $cart->add($filter);
-        $order = $cart->current();
+        $shoppingCart = ShoppingCart::singleton();
+        $shoppingCart->clear();
+        $shoppingCart->add($product);
+
+        $order = $shoppingCart->current();
         $total = $order->calculate();
 
         $body = $order->setBodyTaxCode(
@@ -322,25 +318,17 @@ class UnleashedOrderTest extends SapphireTest
             2
         );
         $this->assertEquals(
-            $body['TaxTotal'],
             '8.39',
+            $body['TaxTotal'],
             'TaxTotal is set to $8.39 ((46.96 + 8.95) * .15) in $body'
         );
         $this->assertEquals(
-            $body['SubTotal'],
             '55.91',
+            $body['SubTotal'],
             'SubTotal is set to $55.91 (46.96 + 8.95) in $body'
         );
-        $this->assertEquals(
-            round($total, 2),
-            64.3,
-            'Total equals $64.30'
-        );
-        $this->assertEquals(
-            round(floatval($body['TaxTotal'] + $body['SubTotal']), 2),
-            64.3,
-            'TaxTotal plus SubTotal equals $64.30'
-        );
+        $this->assertEqualsWithDelta(64.3, round($total, 2), PHP_FLOAT_EPSILON, 'Total equals $64.30');
+        $this->assertEqualsWithDelta(64.3, round(floatval($body['TaxTotal'] + $body['SubTotal']), 2), PHP_FLOAT_EPSILON, 'TaxTotal plus SubTotal equals $64.30');
     }
 
     public function testTaxRounding2(): void
@@ -355,13 +343,15 @@ class UnleashedOrderTest extends SapphireTest
             ->set(FlatTax::class, 'name', 'GST')
             ->set(FlatTax::class, 'tax_code', 'OUTPUT2')
             ->merge(Order::class, 'modifiers', [Simple::class, FlatTax::class]);
-        $boiler = $this->objFromFixture(Product::class, 'boiler');
-        $boiler->publishSingle();
+        $product = $this->objFromFixture(Product::class, 'boiler');
+        $product->publishSingle();
+
         $tax_modifier_class_name = FlatTax::class;
-        $cart = ShoppingCart::singleton();
-        $cart->clear();
-        $cart->add($boiler);
-        $order = $cart->current();
+        $shoppingCart = ShoppingCart::singleton();
+        $shoppingCart->clear();
+        $shoppingCart->add($product);
+
+        $order = $shoppingCart->current();
         $total = $order->calculate();
 
         $body = $order->setBodyTaxCode(
@@ -383,25 +373,17 @@ class UnleashedOrderTest extends SapphireTest
         );
 
         $this->assertEquals(
-            $body['TaxTotal'],
             '139.15',
+            $body['TaxTotal'],
             'TaxTotal is set to $139.15 ((912.17 + 15.50) * .15) in $body'
         );
         $this->assertEquals(
-            $body['SubTotal'],
             '927.67',
+            $body['SubTotal'],
             'SubTotal is set to $927.67 (912.17 + 15.50) in $body'
         );
-        $this->assertEquals(
-            round($total, 2),
-            1066.82,
-            'Total equals $1,066.82'
-        );
-        $this->assertEquals(
-            round(floatval($body['TaxTotal'] + $body['SubTotal']), 2),
-            1066.82,
-            'TaxTotal plus SubTotal equals $1,066.82'
-        );
+        $this->assertEqualsWithDelta(1066.82, round($total, 2), PHP_FLOAT_EPSILON, 'Total equals $1,066.82');
+        $this->assertEqualsWithDelta(1066.82, round(floatval($body['TaxTotal'] + $body['SubTotal']), 2), PHP_FLOAT_EPSILON, 'TaxTotal plus SubTotal equals $1,066.82');
     }
 
 
@@ -410,21 +392,20 @@ class UnleashedOrderTest extends SapphireTest
         Defaults::config()->set('shipping_modifier_class_name', ShippingFrameworkModifier::class);
         Config::modify()->set(ShippingFrameworkModifier::class, 'product_code', 'Freight');
         $body = [];
-        $defaults = Defaults::config();
+        $configForClass = Defaults::config();
         $order = $this->objFromFixture(Order::class, "payablecart");
-        $body = $order->setBodyDeliveryMethodAndDeliveryName($body, $order, $defaults->get('shipping_modifier_class_name'));
+        $body = $order->setBodyDeliveryMethodAndDeliveryName($body, $order, $configForClass->get('shipping_modifier_class_name'));
         $result = implode('|', array_values($body));
         $this->assertSame(
-            $result,
             'Freight|Freight',
+            $result,
             'Set BodyDeliveryMethodAndDeliveryName'
         );
     }
 
     /**
      * JSON data for test
-     *
-     * @link (Unleashed Software API Documentation, https://apidocs.unleashedsoftware.com/Products)
+     * Unleashed Software API Documentation @link https://apidocs.unleashedsoftware.com/Products
      * @var string
      */
     protected $jsondata = '[

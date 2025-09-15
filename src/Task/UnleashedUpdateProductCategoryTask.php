@@ -24,7 +24,7 @@ abstract class UnleashedUpdateProductCategoryTask extends UnleashedBuildTask
 
     protected string $email_subject = "API Unleashed Software - Update Product Categories Results";
 
-    public function run($request)
+    public function run($request): void
     {
         // Definitions
         $silvershopDataListMustBeUnique = ProductCategory::get()->column('Title');
@@ -36,7 +36,7 @@ abstract class UnleashedUpdateProductCategoryTask extends UnleashedBuildTask
         );
 
         // Extract data
-        $apidata_array = (array) json_decode($response->getBody(), true);
+        $apidata_array = (array) json_decode((string) $response->getBody(), true);
         $apidata = $apidata_array['Items'];
 
         $this->log('<h2>Preliminary Checks</h2>');
@@ -47,12 +47,13 @@ abstract class UnleashedUpdateProductCategoryTask extends UnleashedBuildTask
             foreach ($duplicates as $duplicate) {
                 $this->log($duplicate);
             }
+
             $this->log('Please remove duplicates from Silvershop before running this Build Task');
             $this->log('Exit');
             die();
-        } else {
-            $this->log('No duplicate found');
         }
+
+        $this->log('No duplicate found');
 
         // Check for duplicates in apidata before proceeding further
         $duplicates = Utilities::getDuplicates(array_column($apidata, 'GroupName'));
@@ -61,24 +62,26 @@ abstract class UnleashedUpdateProductCategoryTask extends UnleashedBuildTask
             foreach ($duplicates as $duplicate) {
                 $this->log(htmlspecialchars((string) $duplicate, ENT_QUOTES, 'utf-8'));
             }
+
             $this->log(
                 'Please remove duplicates from Unleashed before running this Build Task'
             );
             $this->log('Exit');
             die();
-        } else {
-            $this->log('No duplicate found');
         }
+
+        $this->log('No duplicate found');
 
 
         $this->log('<h2>Update Silvershop Product Categories from Unleashed</h2>');
-        $loader_clear = ProductCategoryBulkLoader::create(ProductCategory::class);
+        $productCategoryBulkLoader = ProductCategoryBulkLoader::create(ProductCategory::class);
 
         $this->log('<h3>Clear a Guid from the Silvershop Product Category if it does not exist</h3>');
-        $results_absent = $loader_clear->clearAbsentRecords($apidata, 'Guid', 'Guid', $this->preview);
-        if ($results_absent->UpdatedCount()) {
-            $this->log(Debug::text($results_absent->getData()));
+        $bulkLoaderResult = $productCategoryBulkLoader->clearAbsentRecords($apidata, 'Guid', 'Guid', $this->preview);
+        if ($bulkLoaderResult->UpdatedCount()) {
+            $this->log(Debug::text($bulkLoaderResult->getData()));
         }
+
         $this->log('Done');
 
 
@@ -96,16 +99,17 @@ abstract class UnleashedUpdateProductCategoryTask extends UnleashedBuildTask
         if ($results->UpdatedCount()) {
             $this->log(Debug::text($results->getData()));
         }
+
         $this->log("Done");
 
         // Send email
-        $count = $results_absent->Count() + $results->Count();
-        if ($count && $this->email_subject && !$this->preview && Email::config()->admin_email) {
-            $data = $results_absent->getData();
+        $count = $bulkLoaderResult->Count() + $results->Count();
+        if ($count && $this->email_subject && !$this->preview && Email::config()->get('admin_email')) {
+            $data = $bulkLoaderResult->getData();
             $data->merge($results->getData());
             $email = Email::create(
-                ShopConfigExtension::config()->email_from ?: Email::config()->admin_email,
-                Email::config()->admin_email,
+                ShopConfigExtension::config()->get('email_from') ?: Email::config()->get('admin_email'),
+                Email::config()->get('admin_email'),
                 $this->email_subject,
                 Debug::text($data)
             );

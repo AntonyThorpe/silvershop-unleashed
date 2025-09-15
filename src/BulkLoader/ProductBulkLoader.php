@@ -41,14 +41,14 @@ class ProductBulkLoader extends BulkLoader
     ];
 
     /**
-     * Specify a colsure to be run on every imported record to set other records
-     * @param Product $obj The placeholder
+     * Specify a closure to be run on every imported record to set other records
+     * @param Product $product The placeholder
      * @param array $record A row from the external API
      */
-    public function setOtherProperties(Product &$obj, array $record): void
+    public function setOtherProperties(Product &$product, array $record): void
     {
         if ($record['Obsolete']) {
-            $obj->AllowPurchase = false;
+            $product->AllowPurchase = false;
         }
     }
 }

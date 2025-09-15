@@ -1,18 +1,24 @@
 {
-	"name": "antonythorpe/silvershop-unleashed",
-	"description": "Silvershop submodule that integrates with Unleashed Software Inventory Management",
-	"type": "silverstripe-vendormodule",
-	"keywords": ["Silverstripe", "Silvershop", "eCommerce", "Unleashed Software", "inventory management"],
-	"require": {
+    "name": "antonythorpe/silvershop-unleashed",
+    "description": "Silvershop submodule that integrates with Unleashed Software Inventory Management",
+    "type": "silverstripe-vendormodule",
+    "keywords": [
+        "Silverstripe",
+        "Silvershop",
+        "eCommerce",
+        "Unleashed Software",
+        "inventory management"
+    ],
+    "require": {
         "php": "^8.1",
-		"antonythorpe/consumer": "^4.0.1",
-		"silvershop/core": "dev-main",
+        "antonythorpe/consumer": "^4.0.1",
+        "silvershop/core": "^3.2.0",
         "silverstripe/cms": "^5"
-	},
-	"require-dev": {
-		"phpunit/phpunit": "^9.5",
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5",
         "silvershop/shipping": "dev-main"
-	},
+    },
     "autoload": {
         "psr-4": {
             "AntonyThorpe\\SilverShopUnleashed\\": "src/"
@@ -24,9 +30,9 @@
         }
     },
     "extra": {
-		"branch-alias": {
-			"dev-master": "5.*-dev"
-		}
-	},
-	"license": "MIT"
+        "branch-alias": {
+            "dev-master": "5.*-dev"
+        }
+    },
+    "license": "MIT"
 }

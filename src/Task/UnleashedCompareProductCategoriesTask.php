@@ -17,7 +17,7 @@ abstract class UnleashedCompareProductCategoriesTask extends UnleashedBuildTask
 
     protected $description = "Compare Product Categories with those in Unleashed";
 
-    public function run($request)
+    public function run($request): void
     {
         // Definitions
         $silvershopProductCategoryTitle = ProductCategory::get()->column('Title');
@@ -29,9 +29,9 @@ abstract class UnleashedCompareProductCategoriesTask extends UnleashedBuildTask
         );
 
         // Response body contents
-        $unleashedCategoriesList = (array) json_decode($response->getBody(), true);
+        $unleashedCategoriesList = (array) json_decode((string) $response->getBody(), true);
 
-        if ($response->getStatusCode() == '200' && is_array($unleashedCategoriesList)) {
+        if ($response->getStatusCode() == '200') {
             $unleashedCategories = array_column($unleashedCategoriesList['Items'], 'GroupName');
 
             // Presentation
@@ -51,6 +51,7 @@ abstract class UnleashedCompareProductCategoriesTask extends UnleashedBuildTask
                 foreach ($duplicates as $duplicate) {
                     $this->log($duplicate);
                 }
+
                 $this->log(
                     'Please remove duplicates from Silvershop before running any Unleased Update Build Tasks'
                 );
@@ -64,6 +65,7 @@ abstract class UnleashedCompareProductCategoriesTask extends UnleashedBuildTask
                 foreach ($duplicates as $duplicate) {
                     $this->log(htmlspecialchars((string) $duplicate, ENT_QUOTES, 'utf-8'));
                 }
+
                 $this->log(
                     'Please remove duplicates from Unleashed before running any Unleased Update Build Tasks'
                 );
@@ -77,6 +79,7 @@ abstract class UnleashedCompareProductCategoriesTask extends UnleashedBuildTask
                     $this->log($category);
                 }
             }
+
             $this->log('<b>Done</b>');
 
             echo "<h2>Product Categories in Silvershop but not in Unleashed</h2>";
@@ -85,14 +88,16 @@ abstract class UnleashedCompareProductCategoriesTask extends UnleashedBuildTask
                     $this->log($category);
                 }
             }
+
             $this->log('<b>Done</b>');
 
             echo "<h2>Product Categories in Unleashed but not the Silvershop</h2>";
-            foreach ($unleashedCategories as $category) {
-                if (!in_array($category, $silvershopProductCategoryTitle)) {
-                    $this->log(htmlspecialchars((string) $category, ENT_QUOTES, 'utf-8'));
+            foreach ($unleashedCategories as $unleashedCategory) {
+                if (!in_array($unleashedCategory, $silvershopProductCategoryTitle)) {
+                    $this->log(htmlspecialchars((string) $unleashedCategory, ENT_QUOTES, 'utf-8'));
                 }
             }
+
             $this->log('<b>Done</b>');
         } else {
             $this->log('Response contains no body');
